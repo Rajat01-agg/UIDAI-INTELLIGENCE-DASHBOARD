@@ -1,0 +1,5 @@
+{
+  "name": "uidai-intelligence-system-frontend",
+  "description": "A frontend application for the UIDAI Intelligence System, providing a user interface to visualize and interact with data related to Aadhaar services.",
+  "requestFramePermissions": []
+}

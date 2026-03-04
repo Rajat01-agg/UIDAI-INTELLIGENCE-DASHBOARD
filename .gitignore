@@ -1,0 +1,98 @@
+# ========================
+# Node.js
+# ========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+package-lock.json
+
+# ========================
+# Build Outputs
+# ========================
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# ========================
+# Environment Variables
+# ========================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# ========================
+# Python
+# ========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+*.egg-info/
+*.egg
+.ipynb_checkpoints/
+
+# ========================
+# IDE & Editors
+# ========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ========================
+# OS Files
+# ========================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ========================
+# Logs
+# ========================
+logs/
+*.log
+
+# ========================
+# Database
+# ========================
+*.sqlite
+*.sqlite3
+*.db
+
+# ========================
+# Nginx (local)
+# ========================
+aadhaar-backend/nginx/logs/*.log
+aadhaar-backend/nginx/temp/
+
+# ========================
+# Reports (generated)
+# ========================
+aadhaar-backend/reports/*.pdf
+
+# ========================
+# Miscellaneous
+# ========================
+.cache/
+.temp/
+.tmp/
+coverage/
+.nyc_output/

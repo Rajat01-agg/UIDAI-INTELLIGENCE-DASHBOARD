@@ -1,0 +1,585 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+// ============ ALL ENUMS ============
+
+enum UserRole {
+  admin
+  officer
+  analyst
+  viewer
+}
+
+enum MetricCategory {
+  enrolment
+  biometric_update
+  demographic_update
+}
+
+enum AgeGroup {
+  age_0_5
+  age_6_17
+  age_18_plus
+}
+
+enum AnomalySeverity {
+  low
+  medium
+  high
+  critical
+}
+
+enum TrendDirection {
+  increasing
+  decreasing
+  stable
+}
+
+enum PatternType {
+  none
+  seasonal
+  cyclical
+  reccurring_spikes
+}
+
+enum RiskSignal {
+  stable
+  risk_building
+  likely_spike
+}
+
+enum FrameworkType {
+  monitor_only
+  capacity_augmentation
+  operational_stabilisation
+  inclusion_outreach
+  mixed_attention
+}
+
+enum AlertType {
+  anomaly
+  trend
+  pattern
+  accessibility_gap
+  operational_stress
+}
+
+enum AlertSeverity {
+  low
+  medium
+  high
+  critical
+}
+
+
+// ============ USER ENUM & MODEL ============
+
+model User {
+  id                String   @id @default(uuid())
+  email             String?  @unique
+  mobileNumber      String?  @unique
+  name              String?
+
+  role              UserRole @default(viewer)
+  isActive          Boolean  @default(true)
+
+  //for security
+  twoFactorEnabled Boolean @default(false)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([role])
+}
+
+
+// ============ CLEANED AADHAAR RAW DATA MODEL ============
+
+model CleanedAadhaarRawData {
+  id            BigInt   @id @default(autoincrement())
+
+  // Date fields
+  date           DateTime
+  year           Int
+  month          Int
+
+  // Location (normalized)
+  state          String
+  district       String
+  pincode        String
+
+  // Metric identification
+  metricCategory MetricCategory
+  ageGroup       AgeGroup
+
+  // Value
+  count          Int
+
+  // Metadata
+  sourceBatchId  String
+  ingestedAt     DateTime @default(now())
+
+  @@index([state, district])
+  @@index([year, month])
+  @@index([metricCategory, ageGroup])
+}
+
+
+// ============ AGGREGATED AADHAAR METRIC MODEL ============
+
+model AggregatedAadhaarMetric {
+  id              BigInt   @id @default(autoincrement())
+
+  // Time
+  year            Int
+  month           Int
+
+  // Location (normalized)
+  state           String
+  district        String
+
+  // Metric identity
+  metricCategory  MetricCategory
+  ageGroup        AgeGroup
+
+  // Aggregated value
+  totalCount      Int
+
+  // Metadata
+  sourceBatchId   String
+  aggregatedAt    DateTime @default(now())
+
+  @@unique([year, month, state, district, metricCategory, ageGroup])
+
+  @@index([state, district])
+  @@index([year, month])
+  @@index([metricCategory, ageGroup])
+}
+
+
+// ============ BASELINE DATA MODEL ============
+
+model BaselineData {
+  id                BigInt   @id @default(autoincrement())
+
+  // Location
+  state             String
+  district          String
+
+  // Metric identity
+  metricCategory    MetricCategory
+  ageGroup          AgeGroup
+
+  // Baseline value
+  baselineValue     Float
+
+  // Metadata
+  lastUpdatedYear   Int
+  lastUpdatedMonth  Int
+  baselineVersion   String
+  updatedAt         DateTime @default(now())
+
+  @@unique([state, district, metricCategory, ageGroup])
+
+  @@index([state, district])
+  @@index([metricCategory, ageGroup])
+}
+
+
+// ============ DERIVED METRICS MODEL ============
+
+model DerivedMetrics {
+  id                    BigInt   @id @default(autoincrement())
+
+  // Time
+  year                  Int
+  month                 Int
+
+  // Location
+  state                 String
+  district              String
+
+  // Metric identity
+  metricCategory        MetricCategory
+  ageGroup              AgeGroup
+
+  // ---------- FEATURES (raw signals) ----------
+  growthRate            Float
+  deviationFromBaseline Float
+  spikeRatio            Float
+  volatility            Float
+
+  // ---------- INDEXES (policy-friendly) ----------
+  demandPressureIndex   Float
+  operationalStressIndex Float
+  //volatilityIndex     Float
+  updateAccessibilityGap Float
+  compositeRiskScore    Float
+
+  // Metadata
+  sourceBatchId         String
+  computedAt            DateTime @default(now())
+
+  @@unique([year, month, state, district, metricCategory, ageGroup])
+
+  @@index([state, district])
+  @@index([year, month])
+  @@index([metricCategory, ageGroup])
+}
+
+
+// ============ ANOMALY RESULTS MODEL ============
+
+model AnomalyResults {
+  id                 BigInt   @id @default(autoincrement())
+
+  // Time
+  year               Int
+  month              Int
+
+  // Location
+  state              String
+  district           String
+
+  // Metric identity
+  metricCategory     MetricCategory
+  ageGroup           AgeGroup
+
+  // Anomaly outputs
+  isAnomaly           Boolean
+  anomalyScore        Float
+  anomalySeverity     AnomalySeverity
+
+  // Confidence
+  anomalyConfidence   Float
+
+  // Metadata
+  sourceBatchId       String
+  detectedAt          DateTime @default(now())
+
+  @@unique([year, month, state, district, metricCategory, ageGroup])
+
+  @@index([state, district])
+  @@index([year, month])
+  @@index([isAnomaly])
+}
+
+
+// ============ TREND RESULTS MODEL ============
+
+model TrendResults {
+  id                BigInt   @id @default(autoincrement())
+
+  // Time reference (latest window end)
+  year              Int
+  month             Int
+
+  // Location
+  state             String
+  district          String
+
+  // Metric identity
+  metricCategory    MetricCategory
+  ageGroup          AgeGroup
+
+  // Trend outputs
+  trendDirection    TrendDirection
+  trendSlope        Float
+  trendStrength     Float
+
+  // Confidence
+  trendConfidence   Float
+
+  // Metadata
+  sourceBatchId     String
+  detectedAt        DateTime @default(now())
+
+  @@unique([year, month, state, district, metricCategory, ageGroup])
+
+  @@index([state, district])
+  @@index([year, month])
+  @@index([trendDirection])
+}
+
+
+// ============ PATTERN RESULTS MODEL ============
+
+model PatternResults {
+  id                   BigInt   @id @default(autoincrement())
+
+  // Time reference (latest window end)
+  year                 Int
+  month                Int
+
+  // Location
+  state                String
+  district              String
+
+  // Metric identity
+  metricCategory        MetricCategory
+  ageGroup              AgeGroup
+
+  // Pattern outputs
+  hasPattern            Boolean
+  dominantPatternType   PatternType
+  patternStrength       Float
+
+  // Confidence
+  patternConfidence     Float
+
+  // Metadata
+  sourceBatchId         String
+  detectedAt            DateTime @default(now())
+
+  @@unique([year, month, state, district, metricCategory, ageGroup])
+
+  @@index([state, district])
+  @@index([year, month])
+  @@index([hasPattern])
+}
+
+
+// ============ PREDICTIVE INDICATORS MODEL ============
+
+model PredictiveIndicators {
+  id                   BigInt   @id @default(autoincrement())
+
+  // Time reference (latest data used)
+  year                 Int
+  month                Int
+
+  // Location
+  state                String
+  district              String
+
+  // Metric identity
+  metricCategory        MetricCategory
+  ageGroup              AgeGroup
+
+  // Predictive signal
+  riskSignal            RiskSignal
+  riskScore             Float
+
+  // Confidence
+  predictionConfidence  Float
+
+  // Explanation helpers
+  contributingFactors   String?
+
+  // Metadata
+  sourceBatchId         String
+  detectedAt            DateTime @default(now())
+
+  @@unique([year, month, state, district, metricCategory, ageGroup])
+
+  @@index([state, district])
+  @@index([year, month])
+  @@index([riskSignal])
+}
+
+
+// ============ SOLUTION FRAMEWORKS MODEL ============
+
+model SolutionFrameworks {
+  id                    BigInt   @id @default(autoincrement())
+
+  // Time reference
+  year                  Int
+  month                 Int
+
+  // Location
+  state                 String
+  district              String
+
+  // Metric identity
+  metricCategory         MetricCategory
+  ageGroup               AgeGroup
+
+  // Selected framework
+  frameworkType          FrameworkType
+  frameworkConfidence    Float
+
+  // Explanation
+  rationale              String
+
+  // Inputs snapshot (optional but useful)
+  drivingIndexes         String?
+  predictiveSignal       RiskSignal?
+
+  // Metadata
+  sourceBatchId          String
+  generatedAt            DateTime @default(now())
+
+  @@unique([year, month, state, district, metricCategory, ageGroup])
+
+  @@index([state, district])
+  @@index([frameworkType])
+}
+
+
+// ============ ALERTS MODEL ============
+
+model Alerts {
+  id                BigInt   @id @default(autoincrement())
+
+  // Time context
+  year              Int
+  month             Int
+
+  // Location
+  state             String
+  district          String
+
+  // Alert identity
+  alertType         AlertType
+  severity          AlertSeverity
+
+  // Message
+  title             String
+  message           String
+
+  // Confidence & source
+  confidenceScore   Float
+  sourceBatchId     String
+
+  // Status
+  isRead            Boolean  @default(false)
+  isResolved        Boolean  @default(false)
+  resolvedAt        DateTime?
+
+  // Metadata
+  createdAt         DateTime @default(now())
+
+  @@index([state, district])
+  @@index([alertType])
+  @@index([severity])
+  @@index([isRead])
+  @@index([isResolved])
+}
+
+
+model Report {
+  id              BigInt   @id @default(autoincrement())
+
+  // Identity
+  title           String
+  reportType      String   // dashboard, state, district, national
+  generatedBy     String   // userId / system
+
+  // Scope
+  state           String?
+  district        String?
+  year            Int
+  month           Int
+
+  // Status
+  status          String   // generated, downloaded, deleted
+  generatedAt     DateTime @default(now())
+
+  // PDF storage
+  pdfUrl          String?
+  pdfPath         String?
+  fileSize        String?
+
+  // Summary numbers (quick cards)
+  totalFindings   Int
+  criticalCount   Int
+  highCount       Int
+  mediumCount     Int
+  lowCount        Int
+
+  // Relations
+  sections        ReportSection[]
+
+  @@index([year, month])
+  @@index([state, district])
+}
+
+
+model ReportSection {
+  id            BigInt   @id @default(autoincrement())
+
+  reportId      BigInt
+  sectionType   ReportSectionType
+  title         String
+  orderIndex    Int
+
+  summaryText   String?
+
+  report        Report   @relation(fields: [reportId], references: [id])
+  items         ReportItem[]
+
+  @@index([sectionType])
+}
+
+enum ReportSectionType {
+  cover
+  executive_summary
+  anomaly_summary
+  trend_summary
+  pattern_summary
+  predictive_summary
+  recommendations
+}
+
+
+model ReportItem {
+  id              BigInt   @id @default(autoincrement())
+
+  sectionId       BigInt
+
+  // What kind of insight
+  itemType        ReportItemType
+  severity        AlertSeverity?
+
+  // Context
+  state           String?
+  district        String?
+
+  title           String
+  description     String
+
+  // Metrics snapshot
+  metricSnapshot  String?   // JSON string
+  confidence      Float?
+
+  // Recommendation
+  recommendation  String?
+
+  section         ReportSection @relation(fields: [sectionId], references: [id])
+
+  @@index([itemType])
+}
+
+enum ReportItemType {
+  anomaly
+  trend
+  pattern
+  prediction
+  accessibility_gap
+  operational_stress
+}
+
+
+model MLJobRun {
+  id          BigInt   @id @default(autoincrement())
+  triggeredBy String
+  status      String   // queued | running | completed | failed
+  startedAt   DateTime?
+  completedAt DateTime?
+  error       String?
+  createdAt   DateTime @default(now())
+}
