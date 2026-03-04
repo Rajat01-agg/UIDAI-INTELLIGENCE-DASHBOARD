@@ -2,11 +2,11 @@ export const buildFilterQuery = (filters: any) => {
   const where: any = {};
 
   if (filters.state) {
-    where.state = filters.state;
+    where.state = { equals: filters.state, mode: 'insensitive' };
   }
 
   if (filters.district) {
-    where.district = filters.district;
+    where.district = { equals: filters.district, mode: 'insensitive' };
   }
 
   if (filters.year) {
@@ -32,11 +32,15 @@ export const buildFilterQuery = (filters: any) => {
 export const resolveIndexColumn = (indexType: string) => {
   const map: any = {
     demandPressure: "demandPressureIndex",
-    // demand_pressure: "demandPressureIndex", // support for snake_case
+    demand_pressure: "demandPressureIndex",
     operationalStress: "operationalStressIndex",
-    // operational_stress: "operationalStressIndex", // support for snake_case
+    operational_stress: "operationalStressIndex",
     updateAccessibilityGap: "updateAccessibilityGap",
-    compositeRisk: "compositeRiskScore"
+    update_accessibility_gap: "updateAccessibilityGap",
+    accessibilityGap: "updateAccessibilityGap",
+    accessibility_gap: "updateAccessibilityGap",
+    compositeRisk: "compositeRiskScore",
+    composite_risk: "compositeRiskScore",
   };
 
   return map[indexType] || "compositeRiskScore";
@@ -44,8 +48,10 @@ export const resolveIndexColumn = (indexType: string) => {
 
 
 export const getRiskLevel = (value: number): string => {
-  if (value > 0.75) return "CRITICAL";
-  if (value > 0.6) return "HIGH";
-  if (value > 0.4) return "MEDIUM";
+  // 5-tier system on 0-10 scale (DB stores indexes as 0-10)
+  if (value >= 8) return "CRITICAL";
+  if (value >= 6) return "HIGH";
+  if (value >= 4) return "MODERATE";
+  if (value >= 2) return "NORMAL";
   return "LOW";
 };

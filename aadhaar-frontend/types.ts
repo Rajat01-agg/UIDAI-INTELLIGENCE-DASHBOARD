@@ -177,13 +177,51 @@ export interface AadhaarAlert {
 }
 
 // ============================================
-// POLICY FRAMEWORKS
+// HIGH RISK DISTRICT (Alerts page)
+// ============================================
+export interface HighRiskDistrict {
+  districtName: string;
+  stateName: string;
+  compositeRisk: number;      // 0-100 normalised
+  demandPressure: number;     // 0-100
+  operationalStress: number;  // 0-100
+  accessibilityGap: number;   // 0-100
+  riskLevel: 'CRITICAL' | 'WATCH' | 'NORMAL';
+  anomaly: { isAnomaly: boolean; anomalySeverity?: string; anomalyScore?: number } | null;
+  trend: string;              // 'increasing' | 'decreasing' | 'stable'
+  pattern: string;            // pattern type or 'none'
+  reasoning: string;          // AI-generated explanation
+  recommendation: string;     // Decision-maker action
+  dominantFactor: string;     // Which index is driving the risk
+}
+
+// ============================================
+// ANOMALY DISTRICT (Alerts page – Anomalies tab)
+// ============================================
+export interface AnomalyDistrict {
+  districtName: string;
+  stateName: string;
+  compositeRisk: number;        // 0-100 normalised
+  demandPressure: number;       // 0-100
+  operationalStress: number;    // 0-100
+  accessibilityGap: number;     // 0-100
+  anomalySeverity: 'critical' | 'high' | 'medium' | 'low';
+  anomalyScore: number;         // 0-1 confidence-like score
+  trend: string;                // 'increasing' | 'decreasing' | 'stable'
+  pattern: string;              // pattern type or 'none'
+  investigationNote: string;    // AI-generated investigation guidance
+}
+
+// ============================================
+// POLICY FRAMEWORKS & PREDICTIVE RISKS
 // ============================================
 export type PolicyFrameworkType = 
   | 'CAPACITY_AUGMENTATION' 
   | 'OPERATIONAL_STABILISATION' 
   | 'INCLUSION_OUTREACH' 
   | 'MONITOR_ONLY';
+
+export type RiskSignal = 'stable' | 'risk_building' | 'likely_spike';
 
 export interface PolicyFramework {
   id: string;
@@ -193,6 +231,24 @@ export interface PolicyFramework {
   applicableRegions: string[];
   priority: 'High' | 'Medium' | 'Low';
   indicators: string[];
+  confidence: number;              // 0-100
+  state?: string;
+  district?: string;
+  metricCategory?: string;
+  predictiveSignal?: RiskSignal;
+}
+
+export interface PredictiveRisk {
+  id: string;
+  state: string;
+  district: string;
+  metricCategory: string;          // enrolment | biometric_update | demographic_update
+  ageGroup: string;                // age_0_5 | age_6_17 | age_18_plus
+  riskSignal: RiskSignal;
+  riskScore: number;               // 0-100 normalised
+  predictionConfidence: number;    // 0-100 normalised
+  contributingFactors: string;     // explanation text
+  aiRecommendation: string;        // generated recommendation
 }
 
 // ============================================

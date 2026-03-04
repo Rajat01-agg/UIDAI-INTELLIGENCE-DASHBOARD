@@ -91,7 +91,7 @@ const ChartsPage: React.FC = () => {
     );
   };
 
-  // Generate visuals
+  // Generate visuals from real backend data
   const handleGenerateVisuals = useCallback(async () => {
     try {
       setLoading(true);
@@ -99,11 +99,11 @@ const ChartsPage: React.FC = () => {
       const data = await fetchVisualsData(filters);
       setVisualsData(data);
       setHasGenerated(true);
-    } catch (err) {
-      console.warn('API unavailable, using mock data:', err);
-      setError(null);
-      setVisualsData(generateMockVisualsData());
-      setHasGenerated(true);
+    } catch (err: any) {
+      console.error('Failed to fetch visuals from backend:', err);
+      setError(err?.message || 'Failed to load chart data from the server. Please check your connection and try again.');
+      setVisualsData(null);
+      setHasGenerated(false);
     } finally {
       setLoading(false);
     }
@@ -285,10 +285,13 @@ const ChartsPage: React.FC = () => {
     scales: {
       r: {
         beginAtZero: true,
+        min: 0,
+        max: 100,
         grid: {
           color: 'rgba(0, 0, 0, 0.1)',
         },
         ticks: {
+          stepSize: 20,
           font: {
             size: 10,
           },
@@ -322,10 +325,13 @@ const ChartsPage: React.FC = () => {
     scales: {
       r: {
         beginAtZero: true,
+        min: 0,
+        max: 100,
         grid: {
           color: 'rgba(0, 0, 0, 0.1)',
         },
         ticks: {
+          stepSize: 20,
           font: {
             size: 10,
           },
@@ -816,8 +822,8 @@ const ChartsPage: React.FC = () => {
                       <PieChartIcon className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-gray-900">{visualsData.polarAreaChart?.title || 'Radial Distribution'}</h3>
-                      <p className="text-xs text-gray-600 mt-0.5">Weighted allocation view</p>
+                      <h3 className="font-bold text-gray-900">{visualsData.polarAreaChart?.title || 'Risk by Service Category'}</h3>
+                      <p className="text-xs text-gray-600 mt-0.5">Composite risk grouped by Aadhaar service type</p>
                     </div>
                   </div>
                 </div>
@@ -833,7 +839,7 @@ const ChartsPage: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-xs font-semibold text-pink-900 mb-1">Key Insight</p>
-                      <p className="text-xs text-gray-600 leading-relaxed">Visualize how resources are distributed across categories. Larger slices indicate higher allocation. Use this to identify budget imbalances and optimize spending across infrastructure, HR, and technology.</p>
+                      <p className="text-xs text-gray-600 leading-relaxed">Compare average composite risk across Aadhaar service categories (Enrolment, Biometric Update, Demographic Update). Larger slices indicate higher risk — useful for identifying which service pipelines need the most attention.</p>
                     </div>
                   </div>
                 </div>
@@ -863,129 +869,7 @@ const ChartsPage: React.FC = () => {
   );
 };
 
-/**
- * Generate realistic mock visuals data
- */
-function generateMockVisualsData(): VisualsResponse {
-  return {
-    lineChart: {
-      title: 'Monthly Trend Analysis - Risk Indicators',
-      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
-      datasets: [
-        {
-          label: 'Demand Pressure Index',
-          data: [52, 58, 55, 61, 67, 64, 69, 72],
-          borderColor: '#3b82f6',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-          tension: 0.4,
-          fill: true,
-          borderWidth: 3,
-          pointRadius: 4,
-          pointBackgroundColor: '#3b82f6',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2,
-        } as any,
-        {
-          label: 'Operational Stress Index',
-          data: [45, 49, 52, 48, 54, 58, 56, 60],
-          borderColor: '#f59e0b',
-          backgroundColor: 'rgba(245, 158, 11, 0.1)',
-          tension: 0.4,
-          fill: true,
-          borderWidth: 3,
-          pointRadius: 4 as any,
-          pointBackgroundColor: '#f59e0b' as any,
-          pointBorderColor: '#fff' as any,
-          pointBorderWidth: 2 as any,
-        },
-      ],
-    },
-    barChart: {
-      title: 'State-wise Composite Risk Comparison',
-      labels: ['Uttar Pradesh', 'Maharashtra', 'Bihar', 'West Bengal', 'Madhya Pradesh', 'Tamil Nadu', 'Rajasthan', 'Karnataka'],
-      datasets: [
-        {
-          label: 'Composite Risk Index',
-          data: [78, 62, 81, 59, 58, 38, 65, 42],
-          backgroundColor: [
-            '#dc2626',
-            '#f59e0b', 
-            '#dc2626',
-            '#f59e0b',
-            '#f59e0b',
-            '#22c55e',
-            '#f59e0b',
-            '#22c55e',
-          ],
-          borderRadius: 6,
-          borderWidth: 0,
-        } as any,
-      ],
-    },
-    pieChart: {
-      title: 'District Risk Status Distribution',
-      labels: ['Critical Risk', 'High Risk', 'Moderate Risk', 'Low Risk', 'Normal'],
-      datasets: [
-        {
-          data: [23, 41, 62, 85, 108],
-          backgroundColor: [
-            '#dc2626',
-            '#f59e0b',
-            '#f97316',
-            '#84cc16',
-            '#22c55e',
-          ],
-          borderColor: ['#fff', '#fff', '#fff', '#fff', '#fff'],
-          borderWidth: 3,
-          hoverOffset: 8,
-        } as any,
-      ],
-    },
-    radarChart: {
-      title: 'System Performance Metrics',
-      labels: ['Efficiency', 'Accessibility', 'Reliability', 'Response Time', 'Data Quality', 'User Satisfaction'],
-      datasets: [
-        {
-          label: 'Current Performance',
-          data: [75, 68, 82, 78, 85, 71],
-          borderColor: '#8b5cf6',
-          backgroundColor: 'rgba(139, 92, 246, 0.25)',
-          borderWidth: 2,
-          pointBackgroundColor: '#8b5cf6',
-          pointBorderColor: '#fff',
-          pointRadius: 4,
-        } as any,
-        {
-          label: 'Target Performance',
-          data: [85, 80, 90, 85, 90, 80],
-          borderColor: '#10b981',
-          backgroundColor: 'rgba(16, 185, 129, 0.15)',
-          borderWidth: 2,
-          pointBackgroundColor: '#10b981',
-          pointBorderColor: '#fff',
-          pointRadius: 4,
-        } as any,
-      ],
-    },
-    polarAreaChart: {
-      title: 'Resource Allocation by Category',
-      labels: ['Infrastructure', 'Human Resources', 'Technology', 'Training', 'Support Services'],
-      datasets: [
-        {
-          data: [35, 28, 42, 18, 25],
-          backgroundColor: [
-            'rgba(236, 72, 153, 0.7)',
-            'rgba(251, 146, 60, 0.7)',
-            'rgba(168, 85, 247, 0.7)',
-            'rgba(59, 130, 246, 0.7)',
-            'rgba(34, 197, 94, 0.7)',
-          ],
-          borderColor: ['#fff', '#fff', '#fff', '#fff', '#fff'],
-          borderWidth: 2,
-        } as any,
-      ],
-    },
-  };
-}
+// All charts now use real backend data via fetchVisualsData().
+// Mock data has been removed — errors are shown to the user instead.
 
 export default ChartsPage;

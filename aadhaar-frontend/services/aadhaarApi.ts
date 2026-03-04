@@ -20,6 +20,7 @@ import {
   VisualsResponse,
   AadhaarAlert,
   PolicyFramework,
+  PredictiveRisk,
   ReportMetadata,
   SearchResponse,
   SearchResult,
@@ -27,6 +28,8 @@ import {
   HealthSummary,
   IndexType,
   RegionStatus,
+  HighRiskDistrict,
+  AnomalyDistrict,
 } from '../types';
 import { batchGeocode, getDistrictCoordsSync } from '../utils/geocode';
 import { getAuthToken, clearAuthData } from './authApi';
@@ -55,6 +58,23 @@ function normalizeIndex(val: number): number {
   if (val <= 10) return val * 10;   // Alternate 0-10 scale
   if (val <= 100) return val;       // Already 0-100
   return 100;                       // Cap at ceiling
+}
+
+/**
+ * Normalise a backend anomaly score to the 0-1 probability scale.
+ *
+ * The ML pipeline may store anomaly scores on different scales:
+ *   0-1   → use as-is
+ *   0-10  → divide by 10
+ *   0-100 → divide by 100
+ *   >100  → clamp to 1
+ */
+function normalizeAnomalyScore(val: number): number {
+  if (val <= 0) return 0;
+  if (val <= 1) return val;          // Already 0-1
+  if (val <= 10) return val / 10;    // 0-10 scale
+  if (val <= 100) return val / 100;  // 0-100 scale
+  return 1;                          // Clamp
 }
 
 // Event for auth errors (401)
@@ -438,10 +458,12 @@ export async function fetchHeatmapData(filters: AppliedFilters): Promise<Heatmap
   // requested state/district is returned, regardless of what the backend sent.
   let filtered = data;
   if (filters.state) {
-    filtered = filtered.filter(d => d.stateName === filters.state);
+    const stateNorm = filters.state.trim().toLowerCase();
+    filtered = filtered.filter(d => d.stateName.trim().toLowerCase() === stateNorm);
   }
   if (filters.district) {
-    filtered = filtered.filter(d => d.districtName.toLowerCase() === filters.district!.toLowerCase());
+    const distNorm = filters.district.trim().toLowerCase();
+    filtered = filtered.filter(d => d.districtName.trim().toLowerCase() === distNorm);
   }
 
   const filteredValues = filtered.map((d) => d.indexValue);
@@ -459,10 +481,23 @@ export async function fetchHeatmapData(filters: AppliedFilters): Promise<Heatmap
 
 const CHART_COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899'];
 
+/** Convert backend label "M/YYYY" or "MM/YYYY" to "Mon YYYY" (e.g. "12/2024" → "Dec 2024") */
+const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function prettifyMonthLabel(raw: string): string {
+  const parts = raw.split('/');
+  if (parts.length === 2) {
+    const m = parseInt(parts[0], 10);
+    const y = parts[1];
+    if (m >= 1 && m <= 12) return `${MONTH_SHORT[m - 1]} ${y}`;
+  }
+  return raw; // fallback: return as-is
+}
+
 /**
  * Fetch visualization data with filters
  * Backend: POST /api/analytics/visuals (one chart per call)
- * Makes 3 parallel calls (trend, distribution, comparison) and combines into VisualsResponse.
+ * Makes 5 parallel calls (trend, distribution, comparison, radar, breakdown)
+ * and combines into VisualsResponse with real backend data.
  */
 export async function fetchVisualsData(filters: AppliedFilters): Promise<VisualsResponse> {
   const backendFilters: any = {};
@@ -470,8 +505,30 @@ export async function fetchVisualsData(filters: AppliedFilters): Promise<Visuals
   if (filters.month) backendFilters.month = filters.month;
   if (filters.state) backendFilters.state = filters.state;
   if (filters.district) backendFilters.district = filters.district;
+  if (filters.metricType) backendFilters.metricCategory = filters.metricType;
+  if (filters.ageGroup) backendFilters.ageGroup = filters.ageGroup;
+  if (filters.indexType) {
+    // Map frontend indexType to backend index keys
+    const indexMap: Record<string, string[]> = {
+      Demand: ['demand_pressure'],
+      Stress: ['operational_stress'],
+      Gap: ['accessibility_gap'],
+      CompositeRisk: ['composite_risk'],
+    };
+    backendFilters.indexes = indexMap[filters.indexType] || ['demand_pressure', 'operational_stress', 'accessibility_gap', 'composite_risk'];
+  } else {
+    // Default: show all 4 indexes in trend charts
+    backendFilters.indexes = ['demand_pressure', 'operational_stress', 'accessibility_gap', 'composite_risk'];
+  }
 
-  const [trendResult, distributionResult, comparisonResult] = await Promise.all([
+  // When a state is selected, comparison should drill-down to districts
+  const comparisonFilters = { ...backendFilters };
+  if (filters.state) {
+    comparisonFilters.groupBy = 'district';
+  }
+
+  // Fire all 5 context calls in parallel for maximum speed
+  const [trendResult, distributionResult, comparisonResult, radarResult, breakdownResult] = await Promise.all([
     apiFetch<any>('/api/analytics/visuals', {
       method: 'POST',
       body: JSON.stringify({ chartType: 'line', context: 'trend', filters: backendFilters }),
@@ -482,108 +539,142 @@ export async function fetchVisualsData(filters: AppliedFilters): Promise<Visuals
     }),
     apiFetch<any>('/api/analytics/visuals', {
       method: 'POST',
-      body: JSON.stringify({ chartType: 'bar', context: 'comparison', filters: backendFilters }),
+      body: JSON.stringify({ chartType: 'bar', context: 'comparison', filters: comparisonFilters }),
+    }),
+    apiFetch<any>('/api/analytics/visuals', {
+      method: 'POST',
+      body: JSON.stringify({ chartType: 'radar', context: 'radar', filters: backendFilters }),
+    }),
+    apiFetch<any>('/api/analytics/visuals', {
+      method: 'POST',
+      body: JSON.stringify({ chartType: 'polarArea', context: 'breakdown', filters: backendFilters }),
     }),
   ]);
 
   const trendData = trendResult.data || {};
   const distData = distributionResult.data || {};
   const compData = comparisonResult.data || {};
+  const radarData = radarResult.data || {};
+  const breakdownData = breakdownResult.data || {};
 
-  // Build lineChart from trend context
+  // ── Line Chart (from trend context) ─────────────────────────
+  const isCategoryPivot = (trendData.meta?.aggregation || '').includes('category');
+  const trendLabels = isCategoryPivot
+    ? (trendData.labels || [])                    // Already human-readable category names
+    : (trendData.labels || []).map(prettifyMonthLabel);
+
+  let trendTitle = 'Risk Indicators Analysis';
+  if (isCategoryPivot) {
+    const period = trendData.meta?.timeRange
+      ? ` (${prettifyMonthLabel(trendData.meta.timeRange)})`
+      : '';
+    trendTitle = `Risk Indicators by Service Category${period}`;
+  } else if (trendData.meta?.timeRange) {
+    trendTitle = `Monthly Trend Analysis (${trendData.meta.timeRange.split(' → ').map(prettifyMonthLabel).join(' → ')})`;
+  }
+
   const lineChart = {
-    title: 'Monthly Trend Analysis - Risk Indicators',
-    labels: trendData.labels || [],
-    datasets: (trendData.datasets || []).map((ds: any, i: number) => ({
-      label: ds.label || `Series ${i + 1}`,
-      data: (ds.data || []).map((v: number) => Number(normalizeIndex(v).toFixed(1))),
-      borderColor: CHART_COLORS[i % CHART_COLORS.length],
-      backgroundColor: `${CHART_COLORS[i % CHART_COLORS.length]}1A`,
-      tension: 0.4,
-      fill: true,
-      borderWidth: 3,
-      pointRadius: 4,
-      pointBackgroundColor: CHART_COLORS[i % CHART_COLORS.length],
-      pointBorderColor: '#fff',
-      pointBorderWidth: 2,
-    })),
+    title: trendTitle,
+    labels: trendLabels,
+    datasets: (trendData.datasets || []).map((ds: any, i: number) => {
+      const displayLabel = (ds.label || `Series ${i + 1}`)
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (c: string) => c.toUpperCase());
+      return {
+        label: displayLabel,
+        data: (ds.data || []).map((v: number) => Number(normalizeIndex(v).toFixed(1))),
+        borderColor: CHART_COLORS[i % CHART_COLORS.length],
+        backgroundColor: `${CHART_COLORS[i % CHART_COLORS.length]}1A`,
+        tension: 0.4,
+        fill: true,
+        borderWidth: 3,
+        pointRadius: 4,
+        pointBackgroundColor: CHART_COLORS[i % CHART_COLORS.length],
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+      };
+    }),
   };
 
-  // Build barChart from comparison context
+  // ── Bar Chart (from comparison context) ─────────────────────
   const barChart = {
-    title: 'State-wise Composite Risk Comparison',
+    title: compData.meta?.comparedBy === 'district'
+      ? 'District-wise Composite Risk Comparison'
+      : 'State-wise Composite Risk Comparison',
     labels: compData.labels || [],
     datasets: (compData.datasets || []).map((ds: any) => ({
       label: ds.label || 'Composite Risk Score',
       data: (ds.data || []).map((v: number) => Number(normalizeIndex(v).toFixed(1))),
       backgroundColor: (ds.data || []).map((v: number) => {
         const norm = normalizeIndex(v);
-        return norm >= 75 ? '#dc2626' : norm >= 50 ? '#f59e0b' : '#22c55e';
+        if (norm >= 80) return '#ef4444';   // Critical — red
+        if (norm >= 60) return '#f97316';   // High — orange
+        if (norm >= 40) return '#eab308';   // Moderate — yellow
+        if (norm >= 20) return '#22c55e';   // Normal — green
+        return '#3b82f6';                   // Low — blue
       }),
       borderRadius: 6,
       borderWidth: 0,
     })),
   };
 
-  // Build pieChart from distribution context
-  const distLabels = distData.labels || ['Normal', 'Watch', 'Critical'];
+  // ── Pie / Doughnut Chart (from distribution context) ────────
+  const distLabels = distData.labels || ['Low', 'Normal', 'Moderate', 'High', 'Critical'];
+  // 5-tier color map matching heatmap legend
+  const distColorMap: Record<string, string> = {
+    Low: '#3b82f6',       // blue-500
+    Normal: '#22c55e',    // green-500
+    Moderate: '#eab308',  // yellow-500
+    High: '#f97316',      // orange-500
+    Critical: '#ef4444',  // red-500
+  };
   const pieChart = {
-    title: 'District Risk Status Distribution',
+    title: `District Risk Distribution (${distData.meta?.totalSamples ?? '?'} samples)`,
     labels: distLabels,
-    datasets: (distData.datasets || []).map((ds: any) => ({
+    datasets: (distData.datasets || [{ data: [] }]).map((ds: any) => ({
       data: ds.data || [],
-      backgroundColor: distLabels.map((_: string, i: number) => {
-        const colors = ['#22c55e', '#f59e0b', '#dc2626', '#f97316', '#84cc16'];
-        return colors[i % colors.length];
-      }),
+      backgroundColor: distLabels.map((l: string) => distColorMap[l] || '#6b7280'),
       borderColor: distLabels.map(() => '#fff'),
       borderWidth: 3,
       hoverOffset: 8,
     })),
   };
 
-  // Build radarChart from trend data (average values per index)
-  const radarLabels = (trendData.datasets || []).map((ds: any) =>
-    (ds.label || '').replace(/_/g, ' ')
-  );
-  const radarValues = (trendData.datasets || []).map((ds: any) => {
-    const vals: number[] = ds.data || [];
-    if (vals.length === 0) return 0;
-    return Number(normalizeIndex(vals.reduce((a: number, b: number) => a + b, 0) / vals.length).toFixed(1));
-  });
-
+  // ── Radar Chart (from radar context — real multi-index averages) ──
   const radarChart = {
     title: 'Multi-Dimensional Risk Analysis',
-    labels: radarLabels.length > 0 ? radarLabels : ['Demand Pressure', 'Operational Stress'],
-    datasets: [
-      {
-        label: 'Average Index Values',
-        data: radarValues,
-        borderColor: '#8b5cf6',
-        backgroundColor: 'rgba(139, 92, 246, 0.25)',
+    labels: radarData.labels || ['Demand Pressure', 'Operational Stress', 'Accessibility Gap', 'Composite Risk'],
+    datasets: (radarData.datasets || []).map((ds: any, i: number) => {
+      const isTarget = (ds.label || '').toLowerCase().includes('target');
+      return {
+        label: ds.label || `Dataset ${i + 1}`,
+        data: isTarget ? ds.data || [] : (ds.data || []).map((v: number) => Number(normalizeIndex(v).toFixed(1))),
+        borderColor: isTarget ? '#10b981' : '#8b5cf6',
+        backgroundColor: isTarget ? 'rgba(16, 185, 129, 0.15)' : 'rgba(139, 92, 246, 0.25)',
         borderWidth: 2,
-        pointBackgroundColor: '#8b5cf6',
+        pointBackgroundColor: isTarget ? '#10b981' : '#8b5cf6',
         pointBorderColor: '#fff',
         pointRadius: 4,
-      },
-    ],
+      };
+    }),
   };
 
-  // Build polarAreaChart from distribution data
+  // ── Polar Area Chart (from breakdown context — by metric category) ──
+  const breakdownLabels = breakdownData.labels || ['No Data'];
+  const polarColors = [
+    'rgba(236, 72, 153, 0.7)',
+    'rgba(251, 146, 60, 0.7)',
+    'rgba(168, 85, 247, 0.7)',
+    'rgba(59, 130, 246, 0.7)',
+    'rgba(34, 197, 94, 0.7)',
+  ];
   const polarAreaChart = {
-    title: 'Risk Category Distribution',
-    labels: distLabels,
-    datasets: (distData.datasets || []).map((ds: any) => ({
-      data: ds.data || [],
-      backgroundColor: distLabels.map((_: string, i: number) => {
-        const colors = [
-          'rgba(34, 197, 94, 0.7)',
-          'rgba(245, 158, 11, 0.7)',
-          'rgba(220, 38, 38, 0.7)',
-        ];
-        return colors[i % colors.length];
-      }),
-      borderColor: distLabels.map(() => '#fff'),
+    title: 'Risk by Service Category',
+    labels: breakdownLabels,
+    datasets: (breakdownData.datasets || [{ data: [] }]).map((ds: any) => ({
+      data: (ds.data || []).map((v: number) => Number(normalizeIndex(v).toFixed(1))),
+      backgroundColor: breakdownLabels.map((_: string, i: number) => polarColors[i % polarColors.length]),
+      borderColor: breakdownLabels.map(() => '#fff'),
       borderWidth: 2,
     })),
   };
@@ -638,7 +729,7 @@ export async function fetchAlerts(filters?: { state?: string; district?: string 
 }
 
 // ============================================
-// POLICY FRAMEWORKS
+// POLICY FRAMEWORKS & PREDICTIVE RISKS
 // ============================================
 
 const FRAMEWORK_TYPE_MAP: Record<string, string> = {
@@ -668,18 +759,110 @@ export async function fetchPolicyFrameworks(): Promise<PolicyFramework[]> {
   const items = raw.data || raw;
   return (items || []).map((fw: any) => {
     const fwType = FRAMEWORK_TYPE_MAP[fw.frameworkType] || 'MONITOR_ONLY';
-    const confidence = fw.frameworkConfidence || 0;
+    const rawConf = fw.frameworkConfidence || 0;
+    const confidence = rawConf <= 1 ? rawConf * 100 : rawConf <= 10 ? rawConf * 10 : Math.min(rawConf, 100);
     return {
       id: String(fw.id ?? ''),
       type: fwType as PolicyFramework['type'],
       title: FRAMEWORK_TITLE_MAP[fwType] || fwType.replace(/_/g, ' '),
       description: fw.rationale || 'No description available',
       applicableRegions: [fw.state, fw.district].filter(Boolean) as string[],
-      priority: (confidence >= 0.75 ? 'High' : confidence >= 0.5 ? 'Medium' : 'Low') as PolicyFramework['priority'],
+      priority: (confidence >= 75 ? 'High' : confidence >= 50 ? 'Medium' : 'Low') as PolicyFramework['priority'],
+      confidence: Number(confidence.toFixed(1)),
       indicators: fw.drivingIndexes
         ? String(fw.drivingIndexes).split(',').map((s: string) => s.trim()).filter(Boolean)
         : [],
+      state: fw.state || undefined,
+      district: fw.district || undefined,
+      metricCategory: fw.metricCategory || undefined,
+      predictiveSignal: fw.predictiveSignal || undefined,
     };
+  });
+}
+
+/**
+ * Generate an AI recommendation based on risk signal and contributing factors.
+ */
+function generatePolicyRecommendation(d: {
+  riskSignal: string;
+  riskScore: number;
+  contributingFactors: string;
+  metricCategory: string;
+  district: string;
+  state: string;
+}): string {
+  const signalLabel = d.riskSignal === 'likely_spike' ? 'Likely Spike' : d.riskSignal === 'risk_building' ? 'Risk Building' : 'Stable';
+
+  let rec = `${d.district} (${d.state}) shows a "${signalLabel}" pattern in ${d.metricCategory.replace(/_/g, ' ')} with a risk score of ${d.riskScore.toFixed(1)}. `;
+
+  if (d.contributingFactors) {
+    rec += `Contributing factors: ${d.contributingFactors}. `;
+  }
+
+  if (d.riskSignal === 'likely_spike') {
+    if (d.metricCategory === 'enrolment') {
+      rec += 'Pre-position additional enrolment capacity and mobile units. Alert district coordinator to prepare for surge. Consider extending operating hours in the next 2-4 weeks.';
+    } else if (d.metricCategory === 'biometric_update') {
+      rec += 'Ensure biometric equipment is serviced and calibrated. Allocate additional trained operators. Review recent failure patterns for hardware vs. environmental causes.';
+    } else {
+      rec += 'Increase staffing for demographic update processing. Prepare additional verification capacity. Review rejection rate patterns to streamline workflow.';
+    }
+  } else if (d.riskSignal === 'risk_building') {
+    if (d.metricCategory === 'enrolment') {
+      rec += 'Monitor demand trajectory closely. Begin contingency planning for capacity augmentation. Review neighbouring district load-balancing options.';
+    } else if (d.metricCategory === 'biometric_update') {
+      rec += 'Schedule preventive equipment maintenance. Review operator training logs. Analyse failure patterns by time and device for targeted intervention.';
+    } else {
+      rec += 'Track update request volumes and rejection rates. Prepare awareness materials. Consider proactive communication about documentation requirements.';
+    }
+  } else {
+    rec += 'Continue standard monitoring. No immediate intervention needed, but maintain readiness for escalation.';
+  }
+
+  return rec;
+}
+
+/**
+ * Fetch predictive risk indicators
+ * Backend: POST /api/policy/suggestions → { success, data: PredictiveIndicators[] }
+ */
+export async function fetchPredictiveRisks(): Promise<PredictiveRisk[]> {
+  const raw = await apiFetch<any>('/api/policy/suggestions', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+  const items = raw.data || raw;
+  return (items || []).map((item: any) => {
+    const rawRisk = item.riskScore || 0;
+    const riskScore = rawRisk <= 1 ? rawRisk * 100 : rawRisk <= 10 ? rawRisk * 10 : Math.min(rawRisk, 100);
+    const rawConf = item.predictionConfidence || 0;
+    const confidence = rawConf <= 1 ? rawConf * 100 : rawConf <= 10 ? rawConf * 10 : Math.min(rawConf, 100);
+
+    const district = item.district || 'Unknown';
+    const state = item.state || 'Unknown';
+    const metricCategory = item.metricCategory || 'enrolment';
+    const riskSignal = item.riskSignal || 'stable';
+    const contributingFactors = item.contributingFactors || '';
+
+    return {
+      id: String(item.id ?? ''),
+      state,
+      district,
+      metricCategory,
+      ageGroup: item.ageGroup || 'age_18_plus',
+      riskSignal,
+      riskScore: Number(riskScore.toFixed(1)),
+      predictionConfidence: Number(confidence.toFixed(1)),
+      contributingFactors,
+      aiRecommendation: generatePolicyRecommendation({
+        riskSignal,
+        riskScore,
+        contributingFactors,
+        metricCategory,
+        district,
+        state,
+      }),
+    } as PredictiveRisk;
   });
 }
 
@@ -936,4 +1119,256 @@ export async function fetchSyncStatus(): Promise<{
     status: 'success',
     message: 'System operational',
   };
+}
+
+// ============================================
+// HIGH RISK DISTRICTS (Alerts page)
+// ============================================
+
+/** Generate reasoning text based on the dominant risk factors */
+function generateReasoning(d: {
+  compositeRisk: number;
+  demandPressure: number;
+  operationalStress: number;
+  accessibilityGap: number;
+  anomaly: any;
+  trend: string;
+  pattern: string;
+  district: string;
+  state: string;
+}): { reasoning: string; recommendation: string; dominantFactor: string } {
+  const factors: { name: string; value: number; label: string }[] = [
+    { name: 'Demand Pressure', value: d.demandPressure, label: 'demand pressure' },
+    { name: 'Operational Stress', value: d.operationalStress, label: 'operational stress' },
+    { name: 'Accessibility Gap', value: d.accessibilityGap, label: 'accessibility gap' },
+  ].sort((a, b) => b.value - a.value);
+
+  const dominant = factors[0];
+  const secondary = factors[1];
+
+  const parts: string[] = [];
+  parts.push(`${d.district} (${d.state}) has a composite risk score of ${d.compositeRisk.toFixed(1)}, significantly above the 80-point threshold.`);
+
+  // Dominant factor
+  parts.push(`The primary driver is ${dominant.label} at ${dominant.value.toFixed(1)}.`);
+  if (secondary.value > 60) {
+    parts.push(`This is compounded by elevated ${secondary.label} (${secondary.value.toFixed(1)}).`);
+  }
+
+  // Anomaly
+  if (d.anomaly?.isAnomaly) {
+    const sevText = d.anomaly.anomalySeverity ? ` (${d.anomaly.anomalySeverity} severity)` : '';
+    parts.push(`An active anomaly${sevText} has been detected, indicating statistically unusual activity patterns.`);
+  }
+
+  // Trend
+  if (d.trend === 'increasing') {
+    parts.push('Risk indicators are trending upward, suggesting conditions may worsen without intervention.');
+  } else if (d.trend === 'decreasing') {
+    parts.push('Risk indicators show a declining trend, but the score remains critically high.');
+  }
+
+  // Pattern
+  if (d.pattern && d.pattern !== 'none') {
+    parts.push(`A "${d.pattern.replace(/_/g, ' ')}" pattern has been identified by the ML pipeline.`);
+  }
+
+  // Recommendation
+  let recommendation = '';
+  if (dominant.label === 'demand pressure') {
+    recommendation = 'Deploy additional enrolment/update centres and mobile units. Consider extending operating hours and allocating more trained operators.';
+  } else if (dominant.label === 'operational stress') {
+    recommendation = 'Augment system capacity — prioritise equipment maintenance, increase server bandwidth, and ensure adequate staffing at operational centres.';
+  } else {
+    recommendation = 'Launch targeted inclusion outreach in underserved rural/tribal areas. Deploy mobile Aadhaar camps and partner with local administration for awareness drives.';
+  }
+
+  if (d.anomaly?.isAnomaly) {
+    recommendation += ' Investigate anomaly root cause immediately — potential fraud or system malfunction.';
+  }
+  if (d.trend === 'increasing') {
+    recommendation += ' Escalate to regional director; consider emergency resource reallocation.';
+  }
+
+  return { reasoning: parts.join(' '), recommendation, dominantFactor: dominant.name };
+}
+
+/**
+ * Fetch high-risk districts (composite risk > threshold)
+ * Uses the heatmap endpoint with CompositeRisk index to get all districts,
+ * then enriches with all index values from hover data.
+ */
+export async function fetchHighRiskDistricts(threshold: number = 80): Promise<HighRiskDistrict[]> {
+  const raw = await apiFetch<any>('/api/heatmap?indexType=compositeRiskScore');
+  const items = raw.data || raw;
+
+  const districts: HighRiskDistrict[] = (items || [])
+    .map((item: any) => {
+      const cr = normalizeIndex(item.hover?.compositeRisk ?? item.primaryValue ?? 0);
+      const dp = normalizeIndex(item.hover?.demandPressure ?? 0);
+      const os = normalizeIndex(item.hover?.operationalStress ?? 0);
+      const ag = normalizeIndex(item.hover?.accessibilityGap ?? 0);
+
+      if (cr <= threshold) return null;
+
+      const districtName = item.district || 'Unknown';
+      const stateName = item.state || 'Unknown';
+      const anomaly = item.hover?.anomaly || null;
+      const trend = item.hover?.trend || 'stable';
+      const pattern = item.hover?.pattern || 'none';
+
+      const { reasoning, recommendation, dominantFactor } = generateReasoning({
+        compositeRisk: cr,
+        demandPressure: dp,
+        operationalStress: os,
+        accessibilityGap: ag,
+        anomaly,
+        trend,
+        pattern,
+        district: districtName,
+        state: stateName,
+      });
+
+      return {
+        districtName,
+        stateName,
+        compositeRisk: Number(cr.toFixed(1)),
+        demandPressure: Number(dp.toFixed(1)),
+        operationalStress: Number(os.toFixed(1)),
+        accessibilityGap: Number(ag.toFixed(1)),
+        riskLevel: (cr > 90 ? 'CRITICAL' : cr > 80 ? 'WATCH' : 'NORMAL') as HighRiskDistrict['riskLevel'],
+        anomaly: anomaly ? { isAnomaly: true, anomalySeverity: anomaly.anomalySeverity, anomalyScore: normalizeAnomalyScore(anomaly.anomalyScore ?? 0) } : null,
+        trend,
+        pattern,
+        reasoning,
+        recommendation,
+        dominantFactor,
+      } as HighRiskDistrict;
+    })
+    .filter(Boolean) as HighRiskDistrict[];
+
+  // Sort by composite risk descending
+  districts.sort((a, b) => b.compositeRisk - a.compositeRisk);
+  return districts;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// ANOMALY DISTRICTS – All districts with ML-detected anomalies
+// ══════════════════════════════════════════════════════════════════════
+
+function generateInvestigationNote(d: {
+  anomalySeverity: string;
+  anomalyScore: number;
+  compositeRisk: number;
+  demandPressure: number;
+  operationalStress: number;
+  accessibilityGap: number;
+  trend: string;
+  pattern: string;
+  district: string;
+  state: string;
+}): string {
+  const severityLabel = d.anomalySeverity.charAt(0).toUpperCase() + d.anomalySeverity.slice(1);
+  const scorePercent = (d.anomalyScore * 100).toFixed(0);
+
+  // Determine the dominant index
+  const indexes = [
+    { name: 'demand pressure', val: d.demandPressure },
+    { name: 'operational stress', val: d.operationalStress },
+    { name: 'accessibility gap', val: d.accessibilityGap },
+  ];
+  indexes.sort((a, b) => b.val - a.val);
+  const top = indexes[0];
+
+  let note = `${severityLabel}-severity anomaly detected in ${d.district} (${d.state}) with ${scorePercent}% confidence. `;
+
+  if (d.compositeRisk > 80) {
+    note += `The district also has an elevated composite risk score of ${d.compositeRisk.toFixed(1)}, primarily driven by ${top.name} (${top.val.toFixed(1)}). `;
+  } else {
+    note += `Although the composite risk (${d.compositeRisk.toFixed(1)}) is within tolerance, the anomalous pattern warrants attention. The leading index is ${top.name} at ${top.val.toFixed(1)}. `;
+  }
+
+  if (d.trend === 'increasing') {
+    note += 'Risk indicators are trending upward — conditions may deteriorate further. ';
+  } else if (d.trend === 'decreasing') {
+    note += 'The declining trend is encouraging but the anomaly requires root-cause analysis. ';
+  }
+
+  if (d.pattern !== 'none') {
+    note += `An ML pattern "${d.pattern.replace(/_/g, ' ')}" has been identified. `;
+  }
+
+  // Investigation guidance based on severity
+  if (d.anomalySeverity === 'critical') {
+    note += 'IMMEDIATE investigation required — potential fraud, system malfunction, or extreme demand surge. Escalate to regional director within 24 hours.';
+  } else if (d.anomalySeverity === 'high') {
+    note += 'Urgent investigation recommended within 48 hours. Check for unusual enrolment/update patterns and verify infrastructure health.';
+  } else if (d.anomalySeverity === 'medium') {
+    note += 'Schedule investigation within one week. Monitor for further deviations and compare with neighbouring districts.';
+  } else {
+    note += 'Flag for routine review. Continue monitoring and correlate with seasonal baselines.';
+  }
+
+  return note;
+}
+
+export async function fetchAnomalyDistricts(): Promise<AnomalyDistrict[]> {
+  const raw = await apiFetch<any>('/api/heatmap?indexType=compositeRiskScore');
+  const items = raw.data || raw;
+
+  const anomalyDistricts: AnomalyDistrict[] = (items || [])
+    .map((item: any) => {
+      const anomaly = item.hover?.anomaly;
+      if (!anomaly || !anomaly.isAnomaly) return null;
+
+      const cr = normalizeIndex(item.hover?.compositeRisk ?? item.primaryValue ?? 0);
+      const dp = normalizeIndex(item.hover?.demandPressure ?? 0);
+      const os = normalizeIndex(item.hover?.operationalStress ?? 0);
+      const ag = normalizeIndex(item.hover?.accessibilityGap ?? 0);
+      const districtName = item.district || 'Unknown';
+      const stateName = item.state || 'Unknown';
+      const trend = item.hover?.trend || 'stable';
+      const pattern = item.hover?.pattern || 'none';
+      const severity = (anomaly.anomalySeverity || 'medium').toLowerCase();
+      const score = normalizeAnomalyScore(anomaly.anomalyScore ?? 0);
+
+      const investigationNote = generateInvestigationNote({
+        anomalySeverity: severity,
+        anomalyScore: score,
+        compositeRisk: cr,
+        demandPressure: dp,
+        operationalStress: os,
+        accessibilityGap: ag,
+        trend,
+        pattern,
+        district: districtName,
+        state: stateName,
+      });
+
+      return {
+        districtName,
+        stateName,
+        compositeRisk: Number(cr.toFixed(1)),
+        demandPressure: Number(dp.toFixed(1)),
+        operationalStress: Number(os.toFixed(1)),
+        accessibilityGap: Number(ag.toFixed(1)),
+        anomalySeverity: severity as AnomalyDistrict['anomalySeverity'],
+        anomalyScore: Number(score.toFixed(3)),
+        trend,
+        pattern,
+        investigationNote,
+      } as AnomalyDistrict;
+    })
+    .filter(Boolean) as AnomalyDistrict[];
+
+  // Sort by severity (critical first), then by anomaly score descending
+  const severityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+  anomalyDistricts.sort((a, b) => {
+    const sA = severityOrder[a.anomalySeverity] ?? 9;
+    const sB = severityOrder[b.anomalySeverity] ?? 9;
+    if (sA !== sB) return sA - sB;
+    return b.anomalyScore - a.anomalyScore;
+  });
+
+  return anomalyDistricts;
 }

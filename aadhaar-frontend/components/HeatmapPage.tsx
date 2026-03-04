@@ -159,10 +159,10 @@ const HeatmapPage: React.FC = () => {
     if (!heatmapData?.data) return [];
     return heatmapData.data.filter((point) => {
       if (filters.state) {
-        if (point.stateName !== filters.state) return false;
+        if (point.stateName.trim().toLowerCase() !== filters.state.trim().toLowerCase()) return false;
       }
       if (filters.district) {
-        if (point.districtName.toLowerCase() !== filters.district.toLowerCase()) return false;
+        if (point.districtName.trim().toLowerCase() !== filters.district.trim().toLowerCase()) return false;
       }
       return true;
     });
