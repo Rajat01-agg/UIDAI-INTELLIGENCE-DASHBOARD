@@ -58,42 +58,9 @@ const ReportsPage: React.FC = () => {
       const data = await fetchReports();
       setReports(data);
     } catch (err) {
-      console.warn('API unavailable, using mock data:', err);
-      // Set mock data for demo (clear error since we have fallback)
-      setError(null);
-      setReports([
-        {
-          id: 'RPT-001',
-          title: 'Monthly Analysis - December 2025',
-          generatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          filters: { year: 2025, month: 12 },
-          status: 'Ready',
-          fileSize: '2.4 MB',
-        },
-        {
-          id: 'RPT-002',
-          title: 'State Report - Uttar Pradesh',
-          generatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          filters: { state: 'UP', year: 2025 },
-          status: 'Ready',
-          fileSize: '1.8 MB',
-        },
-        {
-          id: 'RPT-003',
-          title: 'Quarterly Risk Analysis Q4 2025',
-          generatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          filters: { year: 2025, indexType: 'CompositeRisk' },
-          status: 'Ready',
-          fileSize: '3.2 MB',
-        },
-        {
-          id: 'RPT-004',
-          title: 'District Comparison - Bihar',
-          generatedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-          filters: { state: 'BR' },
-          status: 'Processing',
-        },
-      ]);
+      console.warn('Could not fetch reports:', err);
+      // Show empty list if API is unreachable instead of fake mock data
+      setReports([]);
     } finally {
       setLoading(false);
     }
@@ -111,30 +78,23 @@ const ReportsPage: React.FC = () => {
       setSuccessMessage(null);
       const newReport = await generateReport(filters);
       setReports(prev => [newReport, ...prev]);
-      setSuccessMessage('Report generated successfully!');
-      setTimeout(() => setSuccessMessage(null), 3000);
+      setSuccessMessage('Report generated successfully! Click the download button to get the PDF.');
+      setTimeout(() => setSuccessMessage(null), 5000);
       // Refresh the list after generation to catch updated status
       setTimeout(() => loadReports(), 500);
-    } catch (err) {
-      // Mock success for demo when backend is unavailable
-      const mockId = `RPT-${Date.now()}`;
-      const mockReport: ReportMetadata = {
-        id: mockId,
-        title: buildReportTitle(filters),
-        generatedAt: new Date().toISOString(),
-        filters,
-        status: 'Processing',
-        fileSize: `${(1 + Math.random() * 3).toFixed(1)} MB`,
-      };
-      setReports(prev => [mockReport, ...prev]);
-      setSuccessMessage('Report generation started!');
-      setTimeout(() => setSuccessMessage(null), 3000);
-      // Simulate completion after 3 seconds
-      setTimeout(() => {
-        setReports(prev =>
-          prev.map(r => r.id === mockId ? { ...r, status: 'Ready' as const } : r)
-        );
-      }, 3000);
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to generate report';
+      // Try to extract backend error message from "API Error (4xx): {json}"
+      let userMsg = msg;
+      try {
+        const jsonMatch = msg.match(/API Error \(\d+\): (.+)/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[1]);
+          userMsg = parsed.error || msg;
+        }
+      } catch { /* keep original msg */ }
+      setError(userMsg);
+      setTimeout(() => setError(null), 6000);
     } finally {
       setGenerating(false);
     }
@@ -146,9 +106,11 @@ const ReportsPage: React.FC = () => {
       setDeleting(id);
       await deleteReport(id);
       setReports(prev => prev.filter(r => r.id !== id));
-    } catch (err) {
-      // Mock success for demo
-      setReports(prev => prev.filter(r => r.id !== id));
+      setSuccessMessage('Report deleted successfully');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to delete report');
+      setTimeout(() => setError(null), 5000);
     } finally {
       setDeleting(null);
     }
@@ -160,11 +122,17 @@ const ReportsPage: React.FC = () => {
     try {
       setDownloading(report.id);
       await downloadReportApi(report);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Download failed:', err);
-      // Fallback: open URL directly (for local dev / demo)
-      const url = getReportDownloadUrl(report);
-      window.open(url, '_blank');
+      // Try fallback — open URL in new tab
+      try {
+        const url = getReportDownloadUrl(report);
+        if (url) window.open(url, '_blank');
+        else throw new Error('No download URL');
+      } catch {
+        setError('Download failed. The PDF may not have been generated yet.');
+        setTimeout(() => setError(null), 5000);
+      }
     } finally {
       setDownloading(null);
     }

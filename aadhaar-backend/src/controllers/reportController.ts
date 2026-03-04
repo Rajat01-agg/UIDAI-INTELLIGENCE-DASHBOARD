@@ -59,10 +59,11 @@ export class ReportController {
         return;
       }
 
-      // Check if report already exists
+      // Check if report already exists for this exact scope
       const existingWhere: any = { year, month };
-      if (state) existingWhere.state = state;
-      if (district) existingWhere.district = district;
+      // Use null matching for unscoped (national/all-district) reports
+      existingWhere.state = state || null;
+      existingWhere.district = district || null;
 
       const existingReport = await prisma.report.findFirst({
         where: existingWhere,
@@ -78,12 +79,41 @@ export class ReportController {
       }
 
       // Step 1: Gather findings from all ML pipeline tables
-      const findings = await this.gatherFindings(year, month, state || 'National', district || 'All', metricCategory);
+      let findings = await this.gatherFindings(year, month, state || 'National', district || 'All', metricCategory);
+
+      // If no findings for requested period, try to find the latest period with data
+      if (findings.length === 0) {
+        const latestAnomaly = await prisma.anomalyResults.findFirst({
+          where: { isAnomaly: true },
+          orderBy: [{ year: 'desc' }, { month: 'desc' }],
+          select: { year: true, month: true },
+        });
+        const latestPrediction = await prisma.predictiveIndicators.findFirst({
+          where: { riskSignal: { not: 'stable' } },
+          orderBy: [{ year: 'desc' }, { month: 'desc' }],
+          select: { year: true, month: true },
+        });
+
+        // Pick the latest period that has data
+        let bestYear: number | null = null;
+        let bestMonth: number | null = null;
+        for (const row of [latestAnomaly, latestPrediction]) {
+          if (row && (bestYear === null || row.year > bestYear || (row.year === bestYear && row.month > (bestMonth || 0)))) {
+            bestYear = row.year;
+            bestMonth = row.month;
+          }
+        }
+
+        if (bestYear && bestMonth && (bestYear !== year || bestMonth !== month)) {
+          console.log(`No findings for ${month}/${year}, falling back to latest available: ${bestMonth}/${bestYear}`);
+          findings = await this.gatherFindings(bestYear, bestMonth, state || 'National', district || 'All', metricCategory);
+        }
+      }
 
       if (findings.length === 0) {
         res.status(404).json({
           success: false,
-          error: 'No findings available for the specified criteria',
+          error: 'No findings available for the specified criteria. Ensure the ML pipeline has been run.',
         });
         return;
       }
@@ -716,12 +746,15 @@ export class ReportController {
   }
 
   /**
-   * Calculate severity based on score
+   * Calculate severity based on score.
+   * Handles both 0-1 scale (trendStrength, confidence) and 0-10 scale (riskScore, anomalyScore).
    */
   private calculateSeverity(score: number): string {
-    if (score >= 0.8) return 'critical';
-    if (score >= 0.6) return 'high';
-    if (score >= 0.4) return 'medium';
+    // Normalize to 0-1 if score is on 0-10 scale
+    const normalized = score > 1 ? score / 10 : score;
+    if (normalized >= 0.8) return 'critical';
+    if (normalized >= 0.6) return 'high';
+    if (normalized >= 0.4) return 'medium';
     return 'low';
   }
 
