@@ -232,16 +232,18 @@ export const Documentation: React.FC = () => {
               <Activity className="text-govt-saffron" /> Introduction
             </h2>
             <p className="text-gray-600 leading-7 mb-4">
-              The Aadhaar Intelligence System is an AI-driven decision support platform that transforms raw Aadhaar operational data into actionable intelligence for government officers at district, state, and national levels.
+              The Aadhaar Intelligence System is an AI-driven decision support platform that transforms raw Aadhaar operational data into actionable intelligence for government officers at district, state, and national levels. It processes 2,135+ district-month-metric records to surface anomalies, compute risk indexes, and generate PDF intelligence reports.
             </p>
             <div className="bg-blue-50 border-l-4 border-govt-blue p-4 my-6">
               <h4 className="font-bold text-govt-blue mb-2">Key Capabilities</h4>
               <ul className="list-disc pl-5 space-y-1 text-gray-700 text-sm">
-                <li>Early detection of service disruptions (27-day advance warning)</li>
-                <li>Anomaly detection with 94% accuracy</li>
-                <li>Predictive analytics for resource planning</li>
-                <li>Policy-safe recommendations with explainability</li>
-                <li>Real-time alerts for 700+ districts</li>
+                <li>Four risk indexes on a 0–10 scale: Demand Pressure, Operational Stress, Update Accessibility Gap, Composite Risk</li>
+                <li>Five-tier alert classification: Low, Normal, Moderate, High, Critical</li>
+                <li>Interactive Mapbox-powered heatmap with geocoded district markers</li>
+                <li>Five chart types: Trend Lines, Distribution, State Comparison, Radar, and Breakdown</li>
+                <li>PDF report generation with Supabase cloud storage</li>
+                <li>Anomaly detection with confidence scoring and historical context</li>
+                <li>Role-based access (District / State / National officers) with Google OAuth</li>
               </ul>
             </div>
           </section>
@@ -291,41 +293,34 @@ export const Documentation: React.FC = () => {
               <Server className="text-govt-blue" /> System Overview
             </h2>
             <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-              <h3 className="font-bold mb-4">5-Tier Architecture</h3>
+              <h3 className="font-bold mb-4">4-Tier Architecture</h3>
               <ul className="space-y-4 text-sm">
                 <li className="flex gap-3">
                   <div className="min-w-[80px] font-bold text-gray-500">Tier 1</div>
                   <div>
-                    <strong className="text-gray-900">Frontend (React + Tailwind)</strong>
-                    <p className="text-gray-600">District, State, and National Dashboards with PWA support.</p>
+                    <strong className="text-gray-900">Frontend (React + TypeScript + Vite)</strong>
+                    <p className="text-gray-600">Dashboard, Charts (Chart.js), Heatmap (Mapbox GL), Reports UI, and Alerts pages with Tailwind CSS styling.</p>
                   </div>
                 </li>
                 <li className="flex gap-3">
                   <div className="min-w-[80px] font-bold text-gray-500">Tier 2</div>
                   <div>
-                    <strong className="text-gray-900">API Gateway (Node.js)</strong>
-                    <p className="text-gray-600">Handles ThreatPilot Security, Rate Limiting, and Authentication.</p>
+                    <strong className="text-gray-900">API Server (Express.js + TypeScript)</strong>
+                    <p className="text-gray-600">REST API with JWT + Google OAuth authentication, India-only geo-IP restriction, rate limiting, and role-based access control.</p>
                   </div>
                 </li>
                 <li className="flex gap-3">
                   <div className="min-w-[80px] font-bold text-gray-500">Tier 3</div>
                   <div>
-                    <strong className="text-gray-900">Job Orchestration (BullMQ)</strong>
-                    <p className="text-gray-600">Batch scheduler and queue management for heavy lifting.</p>
-                  </div>
-                </li>
-                <li className="flex gap-3">
-                  <div className="min-w-[80px] font-bold text-gray-500">Tier 4</div>
-                  <div>
-                    <strong className="text-gray-900">ML Pipeline (Python)</strong>
-                    <p className="text-gray-600">Anomaly detection, forecasting, and risk scoring models.</p>
+                    <strong className="text-gray-900">ML Pipeline (Python / FastAPI)</strong>
+                    <p className="text-gray-600">Anomaly detection, trend forecasting, risk scoring models, and predictive indicators computation.</p>
                   </div>
                 </li>
                  <li className="flex gap-3">
-                  <div className="min-w-[80px] font-bold text-gray-500">Tier 5</div>
+                  <div className="min-w-[80px] font-bold text-gray-500">Tier 4</div>
                   <div>
-                    <strong className="text-gray-900">Data Layer</strong>
-                    <p className="text-gray-600">PostgreSQL (Structured), Redis (Cache), TimescaleDB (Time-series).</p>
+                    <strong className="text-gray-900">Data & Storage Layer</strong>
+                    <p className="text-gray-600">PostgreSQL via Neon (Prisma ORM), Supabase Storage for PDF reports, Mapbox SDK for geocoding.</p>
                   </div>
                 </li>
               </ul>
@@ -338,10 +333,13 @@ export const Documentation: React.FC = () => {
             </h3>
             <div className="bg-white border border-gray-200 p-4 rounded-lg">
                 <p className="text-sm font-mono text-gray-700 bg-gray-50 p-2 rounded mb-2">
-                    UIDAI Datasets → Ingestion → Cleaning → Aggregation → ML Analysis → Index Computation → Dashboard Display
+                    UIDAI Datasets → Python ML Pipeline → PostgreSQL (DerivedMetrics, AnomalyResults, PredictiveIndicators) → Express API → React Frontend
+                </p>
+                <p className="text-gray-600 text-sm mb-2">
+                    The ML pipeline processes raw Aadhaar enrollment and update data, computing four standardized indexes (0–10 scale) per district-month-metric combination. Results are stored in PostgreSQL via Prisma ORM and served through the Express.js REST API.
                 </p>
                 <p className="text-gray-600 text-sm">
-                    Processing Frequency: Batch processing runs every 24 hours. Manual overrides available for critical updates.
+                    PDF reports are generated server-side using pdfkit and uploaded to Supabase Storage for cloud-based download access.
                 </p>
             </div>
           </section>
@@ -351,15 +349,15 @@ export const Documentation: React.FC = () => {
              <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <Shield className="text-red-500" /> Alert System
             </h2>
-            <p className="mb-4 text-gray-600">The system categorizes operational risks into three severity levels based on the Demand Pressure Index (DPI).</p>
+            <p className="mb-4 text-gray-600">The system categorizes operational risks into five severity tiers based on index values on a 0–10 scale.</p>
             
             <div className="overflow-x-auto mb-6">
               <table className="w-full text-sm text-left text-gray-600 border rounded-lg overflow-hidden">
                 <thead className="bg-gray-100 text-gray-700 uppercase">
                   <tr>
-                    <th className="px-6 py-3">Type</th>
+                    <th className="px-6 py-3">Tier</th>
                     <th className="px-6 py-3">Color</th>
-                    <th className="px-6 py-3">Condition</th>
+                    <th className="px-6 py-3">Index Range (0–10)</th>
                     <th className="px-6 py-3">Required Action</th>
                   </tr>
                 </thead>
@@ -367,43 +365,55 @@ export const Documentation: React.FC = () => {
                   <tr className="bg-white">
                     <td className="px-6 py-4 font-bold text-red-600">Critical</td>
                     <td className="px-6 py-4"><span className="w-3 h-3 rounded-full bg-red-500 inline-block"></span></td>
-                    <td className="px-6 py-4">DPI &gt 2.5</td>
-                    <td className="px-6 py-4">Immediate</td>
+                    <td className="px-6 py-4">≥ 8.0</td>
+                    <td className="px-6 py-4">Immediate intervention</td>
                   </tr>
                   <tr className="bg-white">
                     <td className="px-6 py-4 font-bold text-orange-600">High</td>
                     <td className="px-6 py-4"><span className="w-3 h-3 rounded-full bg-orange-500 inline-block"></span></td>
-                    <td className="px-6 py-4">1.5 &lt; DPI &le; 2.5</td>
+                    <td className="px-6 py-4">6.0 – 8.0</td>
                     <td className="px-6 py-4">Within 48 hours</td>
                   </tr>
                   <tr className="bg-white">
-                    <td className="px-6 py-4 font-bold text-green-600">Normal</td>
+                    <td className="px-6 py-4 font-bold text-yellow-600">Moderate</td>
+                    <td className="px-6 py-4"><span className="w-3 h-3 rounded-full bg-yellow-500 inline-block"></span></td>
+                    <td className="px-6 py-4">4.0 – 6.0</td>
+                    <td className="px-6 py-4">Scheduled review</td>
+                  </tr>
+                  <tr className="bg-white">
+                    <td className="px-6 py-4 font-bold text-blue-600">Normal</td>
+                    <td className="px-6 py-4"><span className="w-3 h-3 rounded-full bg-blue-400 inline-block"></span></td>
+                    <td className="px-6 py-4">2.0 – 4.0</td>
+                    <td className="px-6 py-4">Routine monitoring</td>
+                  </tr>
+                  <tr className="bg-white">
+                    <td className="px-6 py-4 font-bold text-green-600">Low</td>
                     <td className="px-6 py-4"><span className="w-3 h-3 rounded-full bg-green-500 inline-block"></span></td>
-                    <td className="px-6 py-4">DPI &le; 1.5</td>
-                    <td className="px-6 py-4">Monitoring</td>
+                    <td className="px-6 py-4">&lt; 2.0</td>
+                    <td className="px-6 py-4">No action needed</td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
             <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
-                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Example Alert Payload</h4>
+                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Indexes Monitored</h4>
                 <div className="grid md:grid-cols-2 gap-4 text-sm">
                     <div>
-                        <span className="block text-gray-500">District</span>
-                        <span className="font-semibold">Jaipur, Rajasthan</span>
+                        <span className="block text-gray-500">Demand Pressure Index (DPI)</span>
+                        <span className="font-semibold">Measures enrollment/update demand stress</span>
                     </div>
                      <div>
-                        <span className="block text-gray-500">Alert Type</span>
-                        <span className="font-semibold text-red-600">Biometric Update Stress</span>
+                        <span className="block text-gray-500">Operational Stress Index (OSI)</span>
+                        <span className="font-semibold">Center capacity and processing load</span>
                     </div>
                      <div>
-                        <span className="block text-gray-500">Deviation</span>
-                        <span className="font-semibold">340% above baseline</span>
+                        <span className="block text-gray-500">Update Accessibility Gap (UAG)</span>
+                        <span className="font-semibold">Demographic vs biometric update disparity</span>
                     </div>
                      <div>
-                        <span className="block text-gray-500">Probable Cause</span>
-                        <span className="font-semibold">Center infrastructure failure</span>
+                        <span className="block text-gray-500">Composite Risk Score (CRS)</span>
+                        <span className="font-semibold text-govt-blue">Weighted aggregate of all indexes</span>
                     </div>
                 </div>
             </div>
@@ -413,38 +423,46 @@ export const Documentation: React.FC = () => {
             <h3 className="text-xl font-bold text-gray-900 mb-3">Predictive Analytics</h3>
             <div className="grid md:grid-cols-2 gap-6">
                 <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-bold text-gray-800 mb-2">Demand Forecasting</h4>
+                    <h4 className="font-bold text-gray-800 mb-2">Trend Analysis</h4>
                     <ul className="list-disc pl-4 text-sm text-gray-600 space-y-1">
-                        <li>6-month ahead predictions</li>
-                        <li>91% accuracy on historical validation</li>
-                        <li>Seasonal pattern recognition</li>
+                        <li>Month-over-month trend tracking per metric category</li>
+                        <li>Seasonal pattern recognition across districts</li>
+                        <li>Contextual pivot by metric when single-month data</li>
                     </ul>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                     <h4 className="font-bold text-gray-800 mb-2">Risk Scoring</h4>
                     <ul className="list-disc pl-4 text-sm text-gray-600 space-y-1">
-                        <li>Composite Risk Score (0-10 scale)</li>
-                        <li>Weighted multi-factor analysis</li>
-                        <li>District-level granularity</li>
+                        <li>Composite Risk Score (0–10 scale)</li>
+                        <li>Weighted multi-factor analysis across 4 indexes</li>
+                        <li>District-level granularity for 700+ districts</li>
                     </ul>
                 </div>
             </div>
           </section>
 
           <section id="dashboard-views" className="scroll-mt-24 mb-16">
-            <h3 className="text-xl font-bold text-gray-900 mb-3">Dashboard Views</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-3">Dashboard & Visualization Pages</h3>
             <div className="space-y-4">
                 <div className="border-l-4 border-govt-blue pl-4">
-                    <h4 className="font-bold text-gray-800">District Officer View</h4>
-                    <p className="text-sm text-gray-600">Active alerts for assigned district, Local trend charts (6-month history), Action buttons (Resolve, Escalate).</p>
+                    <h4 className="font-bold text-gray-800">Dashboard Overview</h4>
+                    <p className="text-sm text-gray-600">National summary cards, state-level risk overview, quick-access metrics for all four indexes with drill-down to district level.</p>
                 </div>
-                 <div className="border-l-4 border-govt-saffron pl-4">
-                    <h4 className="font-bold text-gray-800">State Officer View</h4>
-                    <p className="text-sm text-gray-600">Cross-district comparisons, Resource allocation heatmap, State-level trend analysis.</p>
+                <div className="border-l-4 border-red-500 pl-4">
+                    <h4 className="font-bold text-gray-800">Alerts Page</h4>
+                    <p className="text-sm text-gray-600">High-risk district cards, anomaly detection results with confidence scores, severity-based filtering, and alert detail panels.</p>
                 </div>
-                 <div className="border-l-4 border-govt-green pl-4">
-                    <h4 className="font-bold text-gray-800">National Officer View</h4>
-                    <p className="text-sm text-gray-600">Strategic overview (all states), Inter-state performance comparison, National policy recommendations.</p>
+                <div className="border-l-4 border-govt-saffron pl-4">
+                    <h4 className="font-bold text-gray-800">Charts & Analytics</h4>
+                    <p className="text-sm text-gray-600">Five chart types powered by Chart.js: Trend Lines, Risk Distribution, State Comparison (bar + drill-down), Radar (multi-index), and Metric Breakdown (polar area).</p>
+                </div>
+                <div className="border-l-4 border-purple-500 pl-4">
+                    <h4 className="font-bold text-gray-800">Heatmap</h4>
+                    <p className="text-sm text-gray-600">Interactive Mapbox GL map with geocoded district markers, color-coded by risk severity. Supports state filtering with fly-to animation and zoom reset on clear.</p>
+                </div>
+                <div className="border-l-4 border-govt-green pl-4">
+                    <h4 className="font-bold text-gray-800">Reports</h4>
+                    <p className="text-sm text-gray-600">Generate intelligence PDF reports by state, district, period, and metric category. Download from Supabase Storage. Filter and list previously generated reports.</p>
                 </div>
             </div>
           </section>
@@ -455,42 +473,62 @@ export const Documentation: React.FC = () => {
               <Cpu className="text-purple-600" /> Technical Specifications
             </h2>
             
-            <h3 className="text-lg font-bold text-gray-800 mb-3">Index Computation Algorithms</h3>
-            <p className="text-gray-600 mb-4">The core logic for determining operational stress.</p>
+            <h3 className="text-lg font-bold text-gray-800 mb-3">Index Computation (0–10 Scale)</h3>
+            <p className="text-gray-600 mb-4">All four indexes are normalized to a 0–10 scale for consistent interpretation across the platform.</p>
             
             <div className="space-y-4">
               <div className="bg-gray-900 rounded-lg p-4 text-gray-300 font-mono text-xs overflow-x-auto">
-                <p className="text-gray-500 mb-2">// Demand Pressure Index (DPI)</p>
-                <p>DPI = 0.4 * (Current - Baseline)/Baseline +</p>
-                <p className="pl-12">0.3 * Growth_Rate_30day +</p>
-                <p className="pl-12">0.3 * Volatility_90day</p>
+                <p className="text-gray-500 mb-2">// Demand Pressure Index (DPI) — 0 to 10</p>
+                <p>DPI = normalize(</p>
+                <p className="pl-8">0.4 * demand_deviation +</p>
+                <p className="pl-8">0.3 * growth_rate_30day +</p>
+                <p className="pl-8">0.3 * volatility_90day</p>
+                <p>)</p>
                 <br/>
-                <p className="text-gray-500 mb-2">// Operational Stress Index (OSI)</p>
-                <p>OSI = 0.5 * DPI +</p>
-                <p className="pl-12">0.3 * Update_Backlog_Ratio +</p>
-                <p className="pl-12">0.2 * Center_Utilization_Rate</p>
+                <p className="text-gray-500 mb-2">// Operational Stress Index (OSI) — 0 to 10</p>
+                <p>OSI = normalize(</p>
+                <p className="pl-8">0.5 * demand_pressure +</p>
+                <p className="pl-8">0.3 * update_backlog_ratio +</p>
+                <p className="pl-8">0.2 * center_utilization</p>
+                <p>)</p>
+                <br/>
+                <p className="text-gray-500 mb-2">// Update Accessibility Gap (UAG) — 0 to 10</p>
+                <p>UAG = |demographic_rate - biometric_rate| normalized</p>
+                <br/>
+                <p className="text-gray-500 mb-2">// Composite Risk Score (CRS) — 0 to 10</p>
+                <p>CRS = weighted_avg(DPI, OSI, UAG)</p>
               </div>
+            </div>
+
+            <h3 className="text-lg font-bold text-gray-800 mt-8 mb-3">Database Schema (Prisma)</h3>
+            <div className="bg-gray-900 rounded-lg p-4 text-gray-300 font-mono text-xs overflow-x-auto">
+              <p className="text-gray-500 mb-2">// Key models in schema.prisma</p>
+              <p>DerivedMetrics    — 2,135 rows (district × month × metric)</p>
+              <p>AnomalyResult     — 226 detected anomalies with confidence</p>
+              <p>PredictiveIndicator — 2,135 predictive scoring rows</p>
+              <p>TrendResult       — Historical trend data</p>
+              <p>Report / ReportFinding — Generated intelligence reports</p>
             </div>
           </section>
 
           <section id="performance-metrics" className="scroll-mt-24 mb-16">
-            <h3 className="text-lg font-bold text-gray-800 mb-3">Performance Metrics</h3>
+            <h3 className="text-lg font-bold text-gray-800 mb-3">Performance & Data Coverage</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-gray-50 p-4 rounded text-center">
-                    <div className="text-2xl font-bold text-govt-blue">87%</div>
-                    <div className="text-xs text-gray-500">Anomaly Precision</div>
+                    <div className="text-2xl font-bold text-govt-blue">2,135</div>
+                    <div className="text-xs text-gray-500">Derived Metrics</div>
                 </div>
                  <div className="bg-gray-50 p-4 rounded text-center">
-                    <div className="text-2xl font-bold text-govt-blue">99.2%</div>
-                    <div className="text-xs text-gray-500">SQLi Blocking</div>
+                    <div className="text-2xl font-bold text-govt-blue">700+</div>
+                    <div className="text-xs text-gray-500">Districts Covered</div>
                 </div>
                  <div className="bg-gray-50 p-4 rounded text-center">
-                    <div className="text-2xl font-bold text-govt-blue">&lt;500ms</div>
-                    <div className="text-xs text-gray-500">API Latency</div>
+                    <div className="text-2xl font-bold text-govt-blue">36</div>
+                    <div className="text-xs text-gray-500">States & UTs</div>
                 </div>
                  <div className="bg-gray-50 p-4 rounded text-center">
-                    <div className="text-2xl font-bold text-govt-blue">99.7%</div>
-                    <div className="text-xs text-gray-500">System Uptime</div>
+                    <div className="text-2xl font-bold text-govt-blue">226</div>
+                    <div className="text-xs text-gray-500">Anomalies Detected</div>
                 </div>
             </div>
           </section>
@@ -504,16 +542,24 @@ export const Documentation: React.FC = () => {
                 <div className="p-4 border-b bg-gray-50 font-bold text-gray-700">Multi-Layer Security Architecture</div>
                 <div className="p-4 space-y-4">
                     <div>
-                        <h5 className="font-bold text-sm text-govt-blue">Layer 1: ThreatPilot (Runtime Protection)</h5>
-                        <p className="text-xs text-gray-600">SQL Injection prevention (99.2% detection), XSS blocking, CSRF validation.</p>
+                        <h5 className="font-bold text-sm text-govt-blue">Layer 1: Authentication</h5>
+                        <p className="text-xs text-gray-600">Google OAuth 2.0 federated identity via Passport.js, JWT tokens (1h expiry), stateless auth with <code>authenticateJWT</code> middleware on every protected route.</p>
                     </div>
                     <div>
-                        <h5 className="font-bold text-sm text-govt-blue">Layer 2: Authentication</h5>
-                        <p className="text-xs text-gray-600">Google OAuth federated identity, JWT tokens (24h expiry), Stateless auth.</p>
+                        <h5 className="font-bold text-sm text-govt-blue">Layer 2: Authorization (RBAC)</h5>
+                        <p className="text-xs text-gray-600">Role-based access control with <code>requireMinimumRole("viewer")</code> middleware. Roles: viewer, district_officer, state_officer, national_officer, admin.</p>
                     </div>
                      <div>
-                        <h5 className="font-bold text-sm text-govt-blue">Layer 3: Authorization</h5>
-                        <p className="text-xs text-gray-600">Role-Based Access Control (RBAC) with District/State/National tiers.</p>
+                        <h5 className="font-bold text-sm text-govt-blue">Layer 3: Geo-IP Restriction</h5>
+                        <p className="text-xs text-gray-600"><code>indiaOnlyAccess</code> middleware restricts API access to India-based IP addresses only. Applied to all authenticated routes.</p>
+                    </div>
+                    <div>
+                        <h5 className="font-bold text-sm text-govt-blue">Layer 4: Rate Limiting</h5>
+                        <p className="text-xs text-gray-600">Separate rate limiters for auth routes (<code>authRateLimiter</code>) and API routes (<code>apiRateLimiter</code>) to prevent abuse.</p>
+                    </div>
+                    <div>
+                        <h5 className="font-bold text-sm text-govt-blue">Layer 5: ThreatPilot (Agentic AI)</h5>
+                        <p className="text-xs text-gray-600">Autonomous AI-driven threat detection and infrastructure remediation via the ThreatPilot agentic workflow system.</p>
                     </div>
                 </div>
             </div>
@@ -537,27 +583,27 @@ export const Documentation: React.FC = () => {
             
             <div className="mb-8">
                 <div className="flex items-center gap-2 mb-2">
-                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded">POST</span>
-                    <code className="text-sm font-bold">/api/auth/login</code>
+                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded">GET</span>
+                    <code className="text-sm font-bold">/api/auth/google</code>
                 </div>
-                <CodeBlock 
-code={`// Request
-{
-  "email": "officer@uidai.gov",
-  "password": "SecurePass123",
-  "role": "district_officer"
-}
+                <p className="text-sm text-gray-600 mb-2">Initiates Google OAuth 2.0 login flow. Redirects to Google consent screen.</p>
+                <CodeBlock
+code={`// Callback redirects to frontend with token
+GET /api/auth/google/callback
 
+// Response: Redirect to
+// {FRONTEND_URL}?token={jwt}&user={encodedUserInfo}
+
+// Get current user
+GET /api/auth/me
 // Response
 {
-  "token": "eyJhbGciOiJIUzI1NiIs...",
-  "user": {
-    "id": "user_123",
-    "district": "Jaipur"
-  },
-  "expiresIn": 86400
-}`} 
-language="json" 
+  "id": "user_uuid",
+  "email": "officer@uidai.gov.in",
+  "name": "Officer Name",
+  "role": "state_officer"
+}`}
+language="json"
                 />
             </div>
           </section>
@@ -566,25 +612,20 @@ language="json"
             <div className="mb-8">
                 <div className="flex items-center gap-2 mb-2">
                     <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded">GET</span>
-                    <code className="text-sm font-bold">/api/alerts</code>
+                    <code className="text-sm font-bold">/api/dashboard/overview</code>
                 </div>
-                <p className="text-sm text-gray-600 mb-2">Fetch active alerts with optional filtering.</p>
-                <CodeBlock 
-code={`// Query: GET /api/alerts?district=Jaipur&severity=critical
+                <p className="text-sm text-gray-600 mb-2">Dashboard summary with high-risk districts, top anomalies, and state-level aggregations.</p>
+                <CodeBlock
+code={`// Additional dashboard endpoints
+GET /api/dashboard/states-summary
+GET /api/dashboard/states/:stateName/districts-summary
 
-{
-  "alerts": [
-    {
-      "id": "alert_12345",
-      "type": "Biometric Update Stress",
-      "severity": "critical",
-      "deviation": 340,
-      "actions": ["Deploy mobile units", "Audit center"]
-    }
-  ],
-  "total": 23
-}`} 
-language="json" 
+// Heatmap data
+GET /api/heatmap?state=Rajasthan&indexType=compositeRiskScore
+
+// Response includes district-level risk values 
+// with coordinates for map rendering`}
+language="json"
                 />
             </div>
           </section>
@@ -592,19 +633,37 @@ language="json"
           <section id="analytics-api" className="scroll-mt-24 mb-16">
             <div className="mb-8">
                 <div className="flex items-center gap-2 mb-2">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded">GET</span>
-                    <code className="text-sm font-bold">/api/analytics/trends</code>
+                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded">POST</span>
+                    <code className="text-sm font-bold">/api/analytics/visuals</code>
                 </div>
-                <p className="text-sm text-gray-600 mb-2">Retrieve trend data and forecasts.</p>
-                 <CodeBlock 
-code={`// Query: GET /api/analytics/trends?district=Jaipur&metric=enrollment
-
+                <p className="text-sm text-gray-600 mb-2">Generate chart-ready data for all five visualization types.</p>
+                 <CodeBlock
+code={`// Request body
 {
+  "chartType": "trend|distribution|comparison|radar|breakdown",
+  "state": "Rajasthan",
   "district": "Jaipur",
-  "data": [{ "month": "2025-07", "value": 12500 }],
-  "forecast": [{ "month": "2026-02", "value": 13200 }]
-}`} 
-language="json" 
+  "indexType": "compositeRiskScore",
+  "metricCategory": "biometric_update",
+  "year": 2024,
+  "month": 12
+}
+
+// Report generation
+POST /api/reports/generate
+{
+  "year": 2024, "month": 12,
+  "state": "Rajasthan",
+  "metricCategory": "biometric_update",
+  "createdBy": "officer@uidai.gov.in"
+}
+
+// Report management
+GET  /api/reports          — List with filters
+GET  /api/reports/:id      — Get by ID
+GET  /api/reports/:id/download — Download PDF
+DELETE /api/reports/:id    — Delete report`}
+language="json"
                 />
             </div>
           </section>
@@ -613,36 +672,56 @@ language="json"
           <section id="local-dev" className="scroll-mt-24 mb-16">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Deployment</h2>
             <h3 className="text-lg font-bold text-gray-800 mb-3">Local Development</h3>
-            <p className="text-gray-600 mb-4">Steps to set up the environment locally for development.</p>
+            <p className="text-gray-600 mb-4">Steps to set up the full-stack environment locally.</p>
             
             <CodeBlock 
 code={`# Clone repository
 git clone https://github.com/team-rajat/uidai-intelligence.git
 cd uidai-intelligence
 
-# Install dependencies
+# Backend setup
+cd aadhaar-backend
 npm install
+# Configure .env with:
+#   DATABASE_URL (Neon PostgreSQL)
+#   JWT_SECRET
+#   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
+#   SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY
+#   MAPBOX_TOKEN
+npx prisma generate
+npx prisma db push
+npm run dev          # Starts Express on port 3000
+
+# Frontend setup (new terminal)
+cd aadhaar-frontend
+npm install
+npm run dev          # Starts Vite on port 3001
+
+# Landing page (optional)
+cd aadhaar-landing-page
+npm install
+npm run dev          # Starts on port 3002
+
+# ML Pipeline (optional)
+cd aadhaar-backend/FastAPIML
 pip install -r requirements.txt
-
-# Start services using Docker
-docker-compose up -d
-
-# Run frontend
-npm run dev`}
+uvicorn main:app --reload`}
             />
             
             <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-sm text-yellow-800 mt-4">
-                <strong>Note:</strong> You must configure the <code>.env</code> file with valid PostgreSQL and Redis credentials before starting the application.
+                <strong>Note:</strong> You must configure the <code>.env</code> file with valid Neon PostgreSQL, Supabase, Google OAuth, and Mapbox credentials before starting the application.
             </div>
           </section>
 
           <section id="production" className="scroll-mt-24 mb-16">
             <h3 className="text-lg font-bold text-gray-800 mb-3">Production Setup</h3>
             <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700">
-                <li><strong>Infrastructure:</strong> Minimum 4 vCPU, 16GB RAM, Load Balancer.</li>
-                <li><strong>Docker:</strong> Build optimized images for frontend, backend, and ML pipeline.</li>
-                <li><strong>Kubernetes:</strong> Use provided Helm charts for orchestration.</li>
-                <li><strong>Monitoring:</strong> Prometheus + Grafana for metrics, Sentry for error tracking.</li>
+                <li><strong>Database:</strong> Neon PostgreSQL (serverless) with Prisma ORM migrations.</li>
+                <li><strong>Storage:</strong> Supabase Storage for PDF report files (service role key bypasses RLS).</li>
+                <li><strong>Frontend:</strong> Deploy via Vercel or any static host (Vite build output).</li>
+                <li><strong>Backend:</strong> Deploy Express.js server on Railway, Render, or any Node.js host.</li>
+                <li><strong>Reverse Proxy:</strong> Nginx configuration included for production routing.</li>
+                <li><strong>ML Pipeline:</strong> FastAPI server deployed separately for model inference.</li>
             </ul>
           </section>
 
@@ -654,13 +733,16 @@ npm run dev`}
             <h3 className="text-lg font-bold text-gray-800 mb-3">Troubleshooting</h3>
             <div className="space-y-4 text-sm">
                 <div className="p-3 bg-red-50 border border-red-100 rounded">
-                    <strong>Dashboard not loading?</strong> Check API reachability, clear browser cache, or verify JWT expiry.
+                    <strong>Dashboard not loading?</strong> Check backend API reachability (port 3000), clear browser cache, or verify JWT token expiry (1h).
                 </div>
                  <div className="p-3 bg-orange-50 border border-orange-100 rounded">
-                    <strong>Alerts not updating?</strong> Verify BullMQ worker status and Redis queue health.
+                    <strong>Heatmap markers misplaced?</strong> Clear localStorage geocode cache (district_geocode_cache_v2). The system validates coordinates against state centers and auto-corrects with jitter fallback.
                 </div>
                  <div className="p-3 bg-blue-50 border border-blue-100 rounded">
-                    <strong>Auth Failures?</strong> Check Google OAuth credentials and ensure IP is within India.
+                    <strong>Auth Failures?</strong> Verify Google OAuth credentials in .env, check that FRONTEND_URL is correct, and ensure your IP is within India (indiaOnlyAccess middleware).
+                </div>
+                 <div className="p-3 bg-purple-50 border border-purple-100 rounded">
+                    <strong>Reports not generating?</strong> Ensure Supabase credentials (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) are set. The system auto-falls back to the latest available data period if no data exists for the requested month.
                 </div>
             </div>
           </section>
@@ -670,20 +752,20 @@ npm run dev`}
             <div className="space-y-4">
                 <details className="group border border-gray-200 rounded-lg open:bg-gray-50">
                     <summary className="flex cursor-pointer items-center justify-between p-4 font-medium text-gray-900">
-                        How often is data updated?
+                        What data does the system process?
                         <ChevronRight className="transition group-open:rotate-90" size={16} />
                     </summary>
                     <div className="border-t border-gray-200 p-4 text-sm text-gray-600">
-                        Batch processing runs every 24 hours. Manual sync is available for critical needs.
+                        The ML pipeline processes Aadhaar enrollment and update datasets, computing 2,135+ DerivedMetrics rows at district × month × metric granularity. It also generates 226 anomaly results and 2,135 predictive indicators.
                     </div>
                 </details>
                 <details className="group border border-gray-200 rounded-lg open:bg-gray-50">
                     <summary className="flex cursor-pointer items-center justify-between p-4 font-medium text-gray-900">
-                        Is offline access possible?
+                        What chart types are available?
                         <ChevronRight className="transition group-open:rotate-90" size={16} />
                     </summary>
                     <div className="border-t border-gray-200 p-4 text-sm text-gray-600">
-                        Yes, the PWA supports offline viewing of cached dashboard data.
+                        Five chart types: Trend Lines (time-series), Risk Distribution (5-tier histogram), State Comparison (bar chart with drill-down), Radar (multi-index overlay), and Metric Breakdown (polar area). All powered by Chart.js with real backend data.
                     </div>
                 </details>
                  <details className="group border border-gray-200 rounded-lg open:bg-gray-50">
@@ -692,7 +774,16 @@ npm run dev`}
                         <ChevronRight className="transition group-open:rotate-90" size={16} />
                     </summary>
                     <div className="border-t border-gray-200 p-4 text-sm text-gray-600">
-                        No Aadhaar UIDs are stored. All analytics use tokenized references and aggregated data.
+                        No Aadhaar UIDs are stored. All analytics use aggregated district-level data. Access is restricted via JWT + Google OAuth, role-based authorization, and India-only geo-IP fencing.
+                    </div>
+                </details>
+                 <details className="group border border-gray-200 rounded-lg open:bg-gray-50">
+                    <summary className="flex cursor-pointer items-center justify-between p-4 font-medium text-gray-900">
+                        Where are generated reports stored?
+                        <ChevronRight className="transition group-open:rotate-90" size={16} />
+                    </summary>
+                    <div className="border-t border-gray-200 p-4 text-sm text-gray-600">
+                        PDF reports are generated server-side using pdfkit and uploaded to Supabase Storage. Reports can be downloaded, listed, and deleted through the Reports page.
                     </div>
                 </details>
             </div>
@@ -715,7 +806,7 @@ npm run dev`}
           </section>
 
           <footer className="border-t border-gray-200 pt-8 text-sm text-gray-500 flex justify-between">
-            <p>Last updated: January 20, 2026</p>
+            <p>Last updated: March 5, 2026</p>
             <p>License: MIT (Open Source)</p>
           </footer>
 

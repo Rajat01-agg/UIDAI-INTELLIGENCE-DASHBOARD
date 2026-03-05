@@ -20,17 +20,17 @@ export const Hero: React.FC = () => {
           </h2>
           
           <p className="text-lg text-gray-600 mb-8 leading-relaxed max-w-xl">
-            The Aadhaar Intelligence System leverages advanced machine learning to ensure de-duplication, fraud prevention, and seamless authentication for over 1.38 billion residents.
+            The UIDAI Intelligence System transforms raw Aadhaar operational data into actionable intelligence—monitoring 700+ districts with four risk indexes, anomaly detection, interactive heatmaps, and PDF report generation for government officers.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4">
             <button className="flex items-center justify-center bg-govt-saffron text-white px-6 py-3 rounded font-semibold shadow-md hover:bg-orange-600 transition-colors">
               <ShieldCheck className="mr-2 h-5 w-5" />
-              Verify Aadhaar
+              Access Live Demo
             </button>
             <button className="flex items-center justify-center bg-white text-govt-blue border border-govt-blue px-6 py-3 rounded font-semibold hover:bg-blue-50 transition-colors">
               <Database className="mr-2 h-5 w-5" />
-              View Analytics
+              View Documentation
             </button>
           </div>
         </div>
@@ -47,8 +47,8 @@ export const Hero: React.FC = () => {
                     </p>
                 </div>
                 <div className="absolute bottom-10 left-[-20px] p-4 bg-white rounded-lg shadow-lg border-l-4 border-govt-saffron">
-                    <p className="text-xs font-bold text-gray-500">Daily Auth</p>
-                    <p className="text-sm font-bold text-gray-800">100 Million+</p>
+                    <p className="text-xs font-bold text-gray-500">Districts Monitored</p>
+                    <p className="text-sm font-bold text-gray-800">700+</p>
                 </div>
                 <Fingerprint className="text-govt-blue opacity-20 w-48 h-48" />
              </div>

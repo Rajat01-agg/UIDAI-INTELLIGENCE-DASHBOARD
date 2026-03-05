@@ -23,7 +23,7 @@
 
 The UIDAI Aadhaar Intelligence System ML Pipeline is a comprehensive solution designed to analyze Aadhaar authentication data at scale. It performs multi-layered anomaly detection, identifies patterns, trends, and generates actionable insights for policy makers and security teams.
 
-**Notebook:** `Copy_of_Untitled22.ipynb` (All-in-One Google Colab Solution)
+**Notebook:** `aadhaarIntelligence.ipynb` (All-in-One Jupyter Notebook Solution)
 
 ### Key Capabilities:
 - 🔍 **Anomaly Detection** - Identify unusual patterns and outliers
@@ -149,7 +149,7 @@ openpyxl>=3.6.0
    https://colab.research.google.com/
    ```
 
-2. Upload the notebook `Copy_of_Untitled22.ipynb`
+2. Upload the notebook `aadhaarIntelligence.ipynb`
 
 3. Upload your data file `merged_aadhaar_data.csv` to Colab sidebar
 
@@ -168,7 +168,7 @@ pip install pandas numpy scikit-learn scipy matplotlib seaborn openpyxl
 # 3. Start Jupyter
 jupyter notebook
 
-# 4. Open Copy_of_Untitled22.ipynb
+# 4. Open aadhaarIntelligence.ipynb
 ```
 
 ## 📊 Dataset Requirements
@@ -437,4 +437,4 @@ For issues, questions, or feedback:
 
 **Made with ❤️ for UIDAI Intelligence System**
 
-**Last Updated:** January 2026
+**Last Updated:** March 2026

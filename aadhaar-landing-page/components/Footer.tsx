@@ -43,7 +43,7 @@ export const Footer: React.FC = () => {
         
         <div className="border-t border-blue-800 mt-10 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-blue-300">
           <p>© 2026 Unique Identification Authority of India. All Rights Reserved.</p>
-          <p className="mt-2 md:mt-0">Last Updated: January 10, 2026</p>
+          <p className="mt-2 md:mt-0">Last Updated: March 5, 2026</p>
         </div>
       </div>
     </footer>

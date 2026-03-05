@@ -69,7 +69,7 @@ The **UIDAI Intelligence System** is an enterprise-grade platform designed to an
 │  │  • Web Dashboard (React/TypeScript)       :3001          │   │
 │  │  • Landing Page (React/Vite)              :3000          │   │
 │  │  • Mobile Application (Next.js)                          │   │
-│  │  • Real-time Heatmaps, Charts & Visualizations           │   │
+│  │  • Real-time Heatmaps (Mapbox GL), Charts & Visualizations│   │
 │  └──────────────────────────────────────────────────────────┘   │
 │                              ↓                                    │
 │  ┌──────────────────────────────────────────────────────────┐   │
@@ -129,7 +129,7 @@ The **UIDAI Intelligence System** is an enterprise-grade platform designed to an
 | Feature | Details |
 |---------|---------|
 | Dashboard | Real-time KPIs — transactions, demand pressure, operational stress, risk |
-| Heatmap | Interactive India map with district-level Leaflet visualization |
+| Heatmap | Interactive India map with district-level Mapbox GL visualization |
 | Charts | Time-series trend analysis with Recharts |
 | Alerts & Notifications | Alert management and real-time notification panel |
 | Filtering | Advanced filtering by state, district, time period, and index type |
@@ -276,7 +276,7 @@ npm run dev
 
 | Layer | Technologies |
 |-------|-------------|
-| **Frontend** | React 18 · TypeScript · Vite · Tailwind CSS · Leaflet · Recharts |
+| **Frontend** | React 19 · TypeScript · Vite · Tailwind CSS · Mapbox GL · Chart.js · Recharts |
 | **Backend** | Node.js · Express.js · TypeScript · Prisma ORM |
 | **Database** | PostgreSQL |
 | **Cache & Queue** | Redis · BullMQ |
@@ -285,7 +285,7 @@ npm run dev
 | **AI Agents** | ThreatPilot Agentic AI multi-agent workflow |
 | **Auth** | JWT · Google OAuth (Passport.js) |
 | **Infrastructure** | Nginx · Docker |
-| **Visualization** | Matplotlib · Seaborn (ML) · Recharts · Leaflet (Frontend) |
+| **Visualization** | Matplotlib · Seaborn (ML) · Recharts · Chart.js · Mapbox GL (Frontend) |
 
 </div>
 

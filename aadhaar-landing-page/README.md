@@ -165,23 +165,22 @@ CMD ["npm", "run", "preview"]
 
 ```
 aadhaar-landing-page/
-├── src/
-│   ├── components/          # React components
-│   │   ├── Hero.tsx
-│   │   ├── Features.tsx
-│   │   ├── TechStack.tsx
-│   │   ├── Workflow.tsx
-│   │   ├── Documentation.tsx
-│   │   ├── Stats.tsx
-│   │   ├── CallToAction.tsx
-│   │   ├── ChatWidget.tsx
-│   │   ├── Footer.tsx
-│   │   └── Navbar.tsx
-│   ├── App.tsx              # Main app component
-│   ├── index.tsx            # Entry point
-│   ├── types.ts             # TypeScript type definitions
-│   └── metadata.json        # App metadata
-├── public/                  # Static assets
+├── components/              # React components
+│   ├── Hero.tsx
+│   ├── Features.tsx
+│   ├── TechStack.tsx
+│   ├── Workflow.tsx
+│   ├── Documentation.tsx
+│   ├── ProblemStatement.tsx
+│   ├── Stats.tsx
+│   ├── CallToAction.tsx
+│   ├── ChatWidget.tsx
+│   ├── Footer.tsx
+│   └── Navbar.tsx
+├── App.tsx                  # Main app component
+├── index.tsx                # Entry point
+├── types.ts                 # TypeScript type definitions
+├── metadata.json            # App metadata
 ├── index.html               # HTML template
 ├── tailwind.config.js       # Tailwind CSS config
 ├── vite.config.ts           # Vite configuration

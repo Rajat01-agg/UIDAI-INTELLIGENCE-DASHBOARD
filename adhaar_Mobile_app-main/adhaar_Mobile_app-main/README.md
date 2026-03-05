@@ -4,7 +4,7 @@
 *Part of the Aadhaar Intelligence System - UIDAI Hackathon 2026*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![React](https://img.shields.io/badge/React-18.2.0-blue.svg)](https://reactjs.org/)
+[![React](https://img.shields.io/badge/React-19.x-blue.svg)](https://reactjs.org/)
 [![Government Standard](https://img.shields.io/badge/Standard-UX4G-orange.svg)](https://ux.gov.in/)
 
 ---
@@ -40,7 +40,8 @@ Field officers currently lack real-time visibility into Aadhaar service performa
 ### Prerequisites
 
 - Node.js 18+ and npm
-- React 18.2+
+- React 19+
+- Next.js (latest)
 - Modern web browser (Chrome, Firefox, Safari)
 
 ### Installation
@@ -129,7 +130,7 @@ Password: Demo2026
 
 | Layer | Technology | Purpose |
 |-------|------------|---------|
-| **Frontend** | React 18.2 + Tailwind CSS | Modern, responsive UI |
+| **Frontend** | React 19 + Next.js + Tailwind CSS 4 | Modern, responsive UI |
 | **State Management** | React Hooks (useState, useEffect) | In-memory state (no localStorage) |
 | **Charts** | Recharts | Data visualization |
 | **Icons** | Lucide React | Government-friendly iconography |
@@ -332,28 +333,16 @@ REACT_APP_GEO_IP_RESTRICT=true
 
 ```
 uidai-mobile-app/
-├── public/
-│   ├── index.html
-│   ├── manifest.json          # PWA manifest
-│   └── service-worker.js      # Offline support
-├── src/
-│   ├── components/
-│   │   ├── AlertCard.jsx      # Individual alert display
-│   │   ├── AlertDetails.jsx   # Detailed alert view
-│   │   ├── Dashboard.jsx      # Main dashboard
-│   │   └── Navigation.jsx     # Bottom navigation
-│   ├── services/
-│   │   ├── api.js            # API client
-│   │   ├── auth.js           # Authentication
-│   │   └── storage.js        # Offline storage
-│   ├── utils/
-│   │   ├── formatters.js     # Data formatting
-│   │   └── validators.js     # Input validation
-│   ├── App.jsx               # Root component
-│   └── index.js              # Entry point
-├── screenshots/              # App screenshots
-├── .env.example             # Environment template
+├── app/
+│   ├── layout.tsx            # Root layout component
+│   ├── page.tsx              # Home page (alert dashboard)
+│   ├── globals.css           # Global styles
+│   └── alert-detail/         # Alert detail pages
 ├── package.json
+├── next.config.js           # Next.js configuration
+├── tailwind.config.js       # Tailwind CSS configuration
+├── postcss.config.js        # PostCSS configuration
+├── tsconfig.json            # TypeScript configuration
 └── README.md
 ```
 
@@ -473,7 +462,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔄 Version History
 
-### v1.0.0 (January 2026) - Hackathon Submission
+### v1.0.0 (March 2026) - Hackathon Submission
 - ✅ Alert management system
 - ✅ Role-based dashboards
 - ✅ Offline PWA support

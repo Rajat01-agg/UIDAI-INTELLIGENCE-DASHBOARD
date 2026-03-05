@@ -168,7 +168,7 @@ flowchart LR
       },
       "offender": {
         "type": "ip",
-        "value"value": "203.0.113.50"
+        "value": "203.0.113.50"
       },
       "metrics": {
         "event_count": 17,

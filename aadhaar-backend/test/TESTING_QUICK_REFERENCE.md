@@ -4,12 +4,12 @@
 
 ### Your Test Token
 ```
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZlZTE0NjJlLWY5YzItNDA5OC1iZTlhLTVhY2M2MmZkZWQ5NiIsImVtYWlsIjoicmFqYXRhZ2dhcndhbDIwODIwQGdtYWlsLmNvbSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3MTkyMzI4MSwiZXhwIjoxNzcxOTI2ODgxfQ.FyxlGWPFAZrSS5i6SANp4JZGtJPkv3Vhmp8Nx88nWNA
+# Get a fresh token via: POST http://localhost:5000/api/auth/login
+# with body: { "email": "your_email", "password": "your_password" }
+YOUR_JWT_TOKEN_HERE
 ```
 
-**User**: rajataggarwal20820@gmail.com  
-**Role**: admin  
-**Expires**: ~1 hour from generation
+**Note**: Tokens expire ~1 hour after generation. Always use a fresh one.
 
 ---
 

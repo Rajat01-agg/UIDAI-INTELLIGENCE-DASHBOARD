@@ -1,139 +1,278 @@
-# Aadhaar Intelligence Platform
+# Aadhaar Intelligence Platform — Backend
 
-An end-to-end data analytics and intelligence platform designed to monitor Aadhaar-related activities across regions, detect irregularities, and support data-driven decision-making.
+> Node.js/TypeScript REST API backend powering the UIDAI Intelligence System with ML integration, real-time analytics, and automated report generation.
 
 ---
 
 ## Overview
 
-The Aadhaar Intelligence Platform processes large-scale Aadhaar data to provide insights into enrolment patterns, update accessibility, operational stress, and potential risks at state and district levels.
+The Aadhaar Intelligence Platform backend is the core API server that processes large-scale Aadhaar data, serves analytics endpoints, manages authentication, and orchestrates the ML pipeline. It provides insights into enrolment patterns, update accessibility, operational stress, and potential risks at state and district levels.
 
-The system combines **data processing**, **machine learning**, and **analytics APIs** to transform raw datasets into meaningful indicators that can be visualized, monitored, and reported.
+The system combines **Express 5**, **Prisma ORM**, **PostgreSQL**, **Redis/BullMQ**, and a **FastAPI ML microservice** to deliver intelligence-grade analytics.
 
 ---
 
 ## Key Objectives
 
-* Monitor Aadhaar enrolment and update trends
-* Detect anomalies and unusual activity
-* Identify operational and accessibility gaps
+* Monitor Aadhaar enrolment and update trends via REST APIs
+* Detect anomalies and unusual activity using ML pipeline integration
+* Identify operational and accessibility gaps at district/state level
 * Generate risk scores and predictive signals
-* Support policy planning and operational decision-making
-
----
-
-## System Capabilities
-
-### Data Processing
-
-* Ingests Aadhaar-related datasets
-* Cleans and normalizes records
-* Aggregates data by time, region, and category
-
-### Analytics & Intelligence
-
-* Anomaly detection
-* Trend and pattern analysis
-* Risk scoring and index generation
-* Predictive indicators
-
-### Visualization & Reporting
-
-* Heatmaps for district-level analysis
-* Analytics APIs for charts and dashboards
-* Automated PDF report generation
+* Support policy planning with AI-generated frameworks
+* Produce automated PDF reports with Supabase storage
 
 ---
 
 ## Architecture
 
 ```
-Data Sources
-   ↓
-ML Processing Pipeline
-   ↓
-Structured CSV Outputs
-   ↓
-Database Ingestion
-   ↓
-Backend APIs
-   ↓
-Dashboards & Reports
+┌────────────────────────────────────────────────┐
+│            Frontend / Mobile Clients            │
+└────────────────────┬───────────────────────────┘
+                     │ HTTPS
+                     ▼
+┌────────────────────────────────────────────────┐
+│         Nginx Reverse Proxy (Port 80)          │
+└────────────────────┬───────────────────────────┘
+                     │
+                     ▼
+┌────────────────────────────────────────────────┐
+│       Express 5 API Server (Port 5000)         │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────┐ │
+│  │  Auth    │  │ Dashboard│  │  Analytics   │ │
+│  │  Routes  │  │  Routes  │  │   Routes     │ │
+│  ├──────────┤  ├──────────┤  ├──────────────┤ │
+│  │ Heatmap  │  │  Alerts  │  │   Search     │ │
+│  │  Routes  │  │  Routes  │  │   Routes     │ │
+│  ├──────────┤  ├──────────┤  ├──────────────┤ │
+│  │  Policy  │  │ Reports  │  │    Sync      │ │
+│  │  Routes  │  │  Routes  │  │   Routes     │ │
+│  └──────────┘  └──────────┘  └──────────────┘ │
+│                                                │
+│  Middleware: Helmet · CORS · JWT · Passport     │
+└────────────────────┬───────────────────────────┘
+                     │
+          ┌──────────┼──────────────┐
+          ▼          ▼              ▼
+   ┌───────────┐ ┌────────┐ ┌───────────────┐
+   │ PostgreSQL│ │ Redis  │ │ FastAPI ML    │
+   │ (Prisma)  │ │(BullMQ)│ │ Service       │
+   └───────────┘ └────────┘ └───────────────┘
 ```
 
 ---
 
 ## Technology Stack
 
-### Backend
-
-* Node.js Express.js
-* TypeScript
-* Express.js
-* Prisma ORM
-* PostgreSQL
-
-### Machine Learning
-
-* Python
-* Pandas, NumPy
-* Scikit-learn
-* Statistical analysis tools
-
-### Infrastructure
-
-* Redis (for async processing)
-* BullMQ (job queue)
-* Docker (local development support)
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| **Runtime** | Node.js | 18+ |
+| **Framework** | Express.js | 5.x |
+| **Language** | TypeScript | 5.9 |
+| **ORM** | Prisma Client | 6.x |
+| **Database** | PostgreSQL | 14+ |
+| **Cache / Queue** | Redis + BullMQ | Latest |
+| **Auth** | Passport.js + JWT | JWT + Google OAuth |
+| **Security** | Helmet, CORS, express-rate-limit | Latest |
+| **ML Service** | FastAPI (Python) | — |
+| **PDF Generation** | PDFKit | 0.17 |
+| **Storage** | Supabase Storage | Latest |
+| **Proxy** | Nginx | Included |
 
 ---
-## Data Flow Summary
 
-1. Raw Aadhaar data is processed by the ML pipeline
+## API Routes
+
+All routes are served from the Express server on port `5000`:
+
+| Route | Auth | Purpose |
+|-------|------|---------|
+| `/auth/*` | Public | Login, register, Google OAuth callbacks |
+| `/metadata/*` | Public | Filter options (states, districts, metrics) |
+| `/api/dashboard/*` | JWT | Dashboard KPIs, state summaries, district drill-down |
+| `/api/heatmap/*` | JWT | District-level geographic heatmap data |
+| `/api/analytics/*` | JWT | Charts, trends, and visual analytics |
+| `/api/alerts/*` | JWT | Alert management and anomaly notifications |
+| `/api/search/*` | JWT | Full-text search across entities |
+| `/api/policy/*` | JWT | AI-generated policy frameworks |
+| `/api/reports/*` | JWT | PDF report generation, listing, and deletion |
+| `/api/sync/*` | JWT | Trigger ML pipeline data synchronization |
+
+---
+
+## Project Structure
+
+```
+aadhaar-backend/
+├── app.ts                    # Application entry point
+├── package.json
+├── tsconfig.json
+├── prisma.config.ts          # Prisma configuration
+├── prisma/
+│   ├── schema.prisma         # Database schema (586 lines, 20+ models)
+│   ├── seed.ts               # Database seeding script
+│   └── migrations/           # Migration history
+├── FastAPIML/
+│   ├── main.py               # FastAPI ML service endpoint
+│   └── pipeline.py           # ML pipeline execution logic
+├── nginx/
+│   └── conf/                 # Nginx reverse proxy configuration
+├── reports/                  # Generated PDF reports
+├── src/
+│   ├── config/
+│   │   ├── database.ts       # Prisma client setup
+│   │   ├── passport.ts       # Google OAuth strategy
+│   │   ├── queue.ts          # BullMQ queue configuration
+│   │   └── redis.ts          # Redis client setup
+│   ├── controllers/
+│   │   ├── alertsController.ts
+│   │   ├── analyticsController.ts
+│   │   ├── dashboardController.ts
+│   │   ├── heatmapController.ts
+│   │   ├── metadataController.ts
+│   │   ├── policyController.ts
+│   │   ├── reportController.ts
+│   │   ├── searchController.ts
+│   │   └── syncController.ts
+│   ├── middleware/
+│   │   └── auth.ts           # JWT authentication middleware
+│   ├── routes/
+│   │   ├── alertsRoutes.ts
+│   │   ├── analyticsRoutes.ts
+│   │   ├── authRoutes.ts
+│   │   ├── dashboardRoutes.ts
+│   │   ├── heatmapRoutes.ts
+│   │   ├── metadataRoutes.ts
+│   │   ├── policyRoutes.ts
+│   │   ├── reportRoutes.ts
+│   │   ├── searchRoutes.ts
+│   │   └── syncRoutes.ts
+│   ├── types/                # TypeScript type definitions
+│   └── utils/
+│       ├── alertsQueryBuilder.ts
+│       ├── chartPresetResolver.ts
+│       ├── filterQueryBuilder.ts
+│       ├── generator.ts
+│       ├── supabaseStorage.ts
+│       ├── syncWorker.ts
+│       └── wrapAsync.ts
+└── test/
+    ├── test-api.ps1          # PowerShell API test script
+    ├── TESTING_GUIDE.md
+    └── TESTING_QUICK_REFERENCE.md
+```
+
+---
+
+## Database Schema
+
+The Prisma schema defines a comprehensive data model including:
+
+- **Users** — Role-based access (admin, officer, analyst, viewer) with 2FA support
+- **Metric Categories** — Enrolment, biometric update, demographic update
+- **Anomaly Detection** — Severity levels (low → critical), ensemble method results
+- **Trends & Patterns** — Trend direction tracking, seasonal/cyclical pattern types
+- **Risk Signals** — Stable, risk building, likely spike classifications
+- **Policy Frameworks** — Monitor only, capacity augmentation, operational stabilisation, inclusion outreach
+- **Alerts** — Anomaly, trend, pattern, accessibility gap, and operational stress types
+
+---
+
+## Data Flow
+
+1. Raw Aadhaar data is processed by the ML pipeline (`Ml model/` or `FastAPIML/`)
 2. Outputs are generated as structured CSV files
-3. CSV files are ingested into the database
-4. APIs expose analytics and insights
-5. Dashboards and reports consume API data
+3. Sync endpoint (`/api/sync`) triggers database ingestion
+4. BullMQ workers process data asynchronously via Redis
+5. APIs expose analytics, heatmaps, alerts, and policy frameworks
+6. PDF reports are generated with PDFKit and stored in Supabase
+7. Frontend dashboards consume API data in real-time
 
 ---
 
-## Setup Instructions (High-Level)
+## Setup Instructions
 
-1. Clone the repository
-2. Configure environment variables
-3. Install backend dependencies
-4. Run database migrations
-5. Start backend server
-6. Run ML pipeline separately when required
+### 1. Install Dependencies
+
+```bash
+cd aadhaar-backend
+npm install
+```
+
+### 2. Configure Environment Variables
+
+Create a `.env` file:
+
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/uidai_db
+REDIS_URL=redis://localhost:6379
+NODE_ENV=development
+PORT=5000
+JWT_SECRET=your_jwt_secret
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+BACKEND_URL=http://localhost:5000
+FRONTEND_URL=http://localhost:3001
+ML_SERVICE_URL=http://localhost:8000
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_KEY=your_supabase_key
+```
+
+### 3. Run Database Migrations
+
+```bash
+npx prisma generate
+npx prisma migrate dev
+npx prisma db seed    # Optional: seed with sample data
+```
+
+### 4. Start the Server
+
+```bash
+# Development (with hot-reload)
+npm run dev
+
+# Production
+npm run build
+npm run start
+```
+
+### 5. Start FastAPI ML Service (Optional)
+
+```bash
+cd FastAPIML
+pip install fastapi uvicorn
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
 
 ---
 
-## Use Cases
+## Scripts
 
-* Operational monitoring
-* Regional performance analysis
-* Risk identification
-* Policy and planning support
-* Periodic reporting
-
----
-
-## Future Enhancements
-
-* Real-time data streaming
-* Advanced forecasting models
-* Interactive dashboard filters
-* Cross-region comparisons
-* Role-based access controls
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server with nodemon |
+| `npm run build` | Compile TypeScript to JavaScript |
+| `npm run start` | Run compiled production build |
+| `npx prisma studio` | Open Prisma Studio (database GUI) |
+| `npx prisma migrate dev` | Apply pending migrations |
+| `npx prisma db seed` | Seed the database |
 
 ---
 
-## Contribution
+## Testing
 
-This project is modular and extensible. Contributions related to analytics, visualization, performance optimization, or reporting are welcome.
+API tests are available in the `test/` directory:
+
+```bash
+# Run PowerShell API tests
+./test/test-api.ps1
+```
+
+See [test/TESTING_GUIDE.md](./test/TESTING_GUIDE.md) and [test/TESTING_QUICK_REFERENCE.md](./test/TESTING_QUICK_REFERENCE.md) for details.
 
 ---
 
 ## License
 
-This project is intended for educational, research, and demonstration purposes.
+This project is built for the **UIDAI Aadhaar Hackathon 2026** and is intended for educational, research, and demonstration purposes.

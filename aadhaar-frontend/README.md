@@ -22,7 +22,7 @@ The Aadhaar Intelligence System is a data-driven analytics platform that tracks 
 - Data sync functionality to refresh ML pipeline
 
 ### 🗺️ Heatmap
-- Interactive India map with Leaflet
+- Interactive India map with Mapbox GL
 - District-level visualization colored by selected index
 - Tooltips showing detailed metrics on hover
 - Filter by state, district, time period, and index type
@@ -61,36 +61,59 @@ The Aadhaar Intelligence System is a data-driven analytics platform that tracks 
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: React 18 with TypeScript
-- **Build Tool**: Vite
+- **Frontend**: React 19 with TypeScript
+- **Build Tool**: Vite 6
 - **Styling**: Tailwind CSS
-- **Charts**: Chart.js with react-chartjs-2
-- **Maps**: Leaflet with react-leaflet
+- **Charts**: Chart.js with react-chartjs-2, Recharts
+- **Maps**: Mapbox GL with react-map-gl
 - **Icons**: Lucide React
 - **State Management**: React Hooks (useState, useEffect, custom hooks)
+- **Auth**: Context-based authentication (AuthContext)
 
 ## 📁 Project Structure
 
 ```
-├── components/           # React components
-│   ├── Dashboard.tsx    # Main dashboard with KPIs
-│   ├── HeatmapPage.tsx  # Interactive India map
-│   ├── ChartsPage.tsx   # Chart.js visualizations
-│   ├── ReportsPage.tsx  # Report generation & management
-│   ├── AlertsPage.tsx   # Alerts & notifications
-│   ├── PolicyPage.tsx   # Policy frameworks
-│   ├── FilterBar.tsx    # Reusable filter component
-│   ├── StateDetailsPanel.tsx  # District drill-down modal
-│   ├── Sidebar.tsx      # Navigation sidebar
-│   └── Header.tsx       # App header
-├── services/            # API services
-│   └── aadhaarApi.ts   # API client with mock fallbacks
-├── hooks/              # Custom React hooks
-│   └── useFilters.ts   # Centralized filter management
-├── types.ts            # TypeScript type definitions
-├── constants.tsx       # Color palette and helpers
-├── App.tsx            # Main app component with routing
-└── index.tsx          # App entry point
+├── components/               # React components
+│   ├── Dashboard.tsx        # Main dashboard with KPIs
+│   ├── HeatmapPage.tsx      # Interactive India map (Mapbox GL)
+│   ├── ChartsPage.tsx       # Chart.js & Recharts visualizations
+│   ├── ReportsPage.tsx      # Report generation & management
+│   ├── AlertsPage.tsx       # Alerts & notifications
+│   ├── PolicyPage.tsx       # Policy frameworks
+│   ├── FilterBar.tsx        # Reusable filter component
+│   ├── StateDetailsPanel.tsx # District drill-down modal
+│   ├── ImpactTracker.tsx    # Impact tracking & metrics
+│   ├── LoginPage.tsx        # Authentication login page
+│   ├── ProfilePage.tsx      # User profile management
+│   ├── NotificationPanel.tsx # Real-time notification panel
+│   ├── ErrorBoundary.tsx    # React error boundary
+│   ├── Sidebar.tsx          # Navigation sidebar
+│   └── Header.tsx           # App header
+├── contexts/                # React contexts
+│   └── AuthContext.tsx      # Authentication context provider
+├── services/                # API services
+│   ├── aadhaarApi.ts       # API client with mock fallbacks
+│   └── authApi.ts          # Authentication API service
+├── hooks/                   # Custom React hooks
+│   ├── useFilters.ts       # Centralized filter management
+│   ├── useDebounce.ts      # Debounce utility hook
+│   └── useNotifications.tsx # Notification management hook
+├── data/                    # Static data files
+│   ├── states.ts           # Indian states data
+│   ├── districts.ts        # Indian districts data
+│   └── metricDefinitions.ts # Metric definitions
+├── security/                # Security utilities
+│   ├── ai_service.py       # AI security service
+│   ├── firewall.js         # Application firewall
+│   └── worker.js           # Security worker
+├── utils/                   # Helper utilities
+│   └── geocode.ts          # Geocoding utility
+├── tests/                   # Test files
+│   └── states-metrics.test.ts # State metrics tests
+├── types.ts                 # TypeScript type definitions
+├── constants.tsx            # Color palette and helpers
+├── App.tsx                  # Main app component with routing
+└── index.tsx                # App entry point
 ```
 
 ## 🚀 Getting Started
