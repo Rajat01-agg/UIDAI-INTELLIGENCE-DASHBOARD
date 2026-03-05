@@ -188,12 +188,38 @@ const STATE_CENTERS: Record<string, [number, number]> = {
 };
 
 /**
- * Synchronous fallback — returns state center if geocode cache miss.
- * After batchGeocode populates the cache this is rarely used.
+ * Returns state center with small random jitter.
+ * The jitter prevents multiple fallback dots from stacking on one pixel.
  */
 function getDistrictCoordinatesFallback(state: string, _district: string): [number, number] {
   const key = (state || '').toLowerCase();
-  return STATE_CENTERS[key] || [22.0, 78.0];
+  const center = STATE_CENTERS[key];
+  if (!center) return [22.0, 78.0]; // unknown state — absolute last resort
+  // Add ±0.3° jitter (~30 km) so markers spread around the state center
+  const jitterLat = (Math.random() - 0.5) * 0.6;
+  const jitterLng = (Math.random() - 0.5) * 0.6;
+  return [center[0] + jitterLat, center[1] + jitterLng];
+}
+
+/**
+ * Maximum distance (degrees) from state center for a coordinate to be
+ * considered "within" that state. ~4° ≈ 440 km — generous enough for
+ * the largest Indian states (Rajasthan, UP) while catching clearly
+ * wrong Mapbox geocoding results that land in another state.
+ */
+const MAX_STATE_RADIUS_DEG = 4;
+
+/**
+ * Check whether geocoded coordinates are plausibly within the expected state.
+ * Uses simple lat/lng distance from the state center as a heuristic.
+ * Returns false if the state is unknown (no center) or coords are too far.
+ */
+function isCoordNearState(coord: [number, number], stateName: string): boolean {
+  const center = STATE_CENTERS[(stateName || '').toLowerCase()];
+  if (!center) return false;
+  const dLat = Math.abs(coord[0] - center[0]);
+  const dLng = Math.abs(coord[1] - center[1]);
+  return dLat <= MAX_STATE_RADIUS_DEG && dLng <= MAX_STATE_RADIUS_DEG;
 }
 
 // ============================================
@@ -437,8 +463,13 @@ export async function fetchHeatmapData(filters: AppliedFilters): Promise<Heatmap
 
     const distName = item.district || 'Unknown';
     const stateName = item.state || 'Unknown';
-    const coords = getDistrictCoordsSync(distName, stateName)
-      || getDistrictCoordinatesFallback(stateName, distName);
+    let coords = getDistrictCoordsSync(distName, stateName);
+    // Validate geocoded coordinates actually fall within the expected state.
+    // Mapbox can return plausible but geographically wrong results for
+    // ambiguous district names — those dots would appear in another state.
+    if (!coords || !isCoordNearState(coords, stateName)) {
+      coords = getDistrictCoordinatesFallback(stateName, distName);
+    }
 
     return {
       districtCode: `${stateName.substring(0, 2).toUpperCase()}-${distName.substring(0, 3).toUpperCase()}`,
@@ -874,6 +905,17 @@ export async function fetchPredictiveRisks(): Promise<PredictiveRisk[]> {
  * Generate a new report
  * Backend: POST /api/reports/generate → { success, reportId, pdfUrl, fileSize, status, generatedAt, findingsSummary }
  */
+// Reverse map frontend display names back to DB MetricCategory enum values
+const REVERSE_METRIC_MAP: Record<string, string> = {
+  'Enrolment': 'enrolment',
+  'Biometric': 'biometric_update',
+  'Demographic': 'demographic_update',
+  // Also handle if someone passes the raw DB values
+  'enrolment': 'enrolment',
+  'biometric_update': 'biometric_update',
+  'demographic_update': 'demographic_update',
+};
+
 export async function generateReport(filters: AppliedFilters): Promise<ReportMetadata> {
   const raw = await apiFetch<any>('/api/reports/generate', {
     method: 'POST',
@@ -882,7 +924,7 @@ export async function generateReport(filters: AppliedFilters): Promise<ReportMet
       month: filters.month || new Date().getMonth() + 1,
       state: filters.state || undefined,
       district: filters.district || undefined,
-      metricCategory: filters.metricType ? filters.metricType.toLowerCase() : undefined,
+      metricCategory: filters.metricType ? (REVERSE_METRIC_MAP[filters.metricType] || filters.metricType.toLowerCase()) : undefined,
     }),
   });
   const statusVal = (raw.status || '').toLowerCase();
@@ -937,18 +979,22 @@ export async function deleteReport(id: string): Promise<{ success: boolean }> {
 }
 
 /**
- * Download a report PDF via an authenticated fetch + blob.
- * Creates a temporary download link to trigger the browser save dialog.
+ * Download a report PDF.
+ * If the report has a Supabase public URL (fileUrl), fetches directly from there.
+ * Otherwise falls back to the backend download endpoint.
  */
 export async function downloadReport(report: ReportMetadata): Promise<void> {
+  // Prefer the Supabase public URL — no auth needed, faster CDN download
+  const isPublicUrl = report.fileUrl && report.fileUrl.includes('supabase');
   const url = report.fileUrl || `${API_BASE_URL}/api/reports/${report.id}/download`;
-  const token = getAuthToken();
 
-  const response = await fetch(url, {
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
+  const headers: Record<string, string> = {};
+  if (!isPublicUrl) {
+    const token = getAuthToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(url, { headers });
 
   if (!response.ok) {
     throw new Error(`Download failed (${response.status})`);

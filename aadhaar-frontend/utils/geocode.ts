@@ -19,7 +19,19 @@ const geocodingClient = MAPBOX_TOKEN ? mbxGeocoding({ accessToken: MAPBOX_TOKEN 
 const memoryCache = new Map<string, [number, number]>();
 
 // ── localStorage persistence ──────────────────────────────────────
-const LS_KEY = 'district_geocode_cache';
+const LS_KEY = 'district_geocode_cache_v2';
+
+// Remove old cache key from localStorage (one-time migration)
+try { localStorage.removeItem('district_geocode_cache'); } catch { /* ignore */ }
+
+// Coordinates that indicate a failed geocoding attempt (India center fallback).
+// Markers at this position would appear in Madhya Pradesh regardless of actual state.
+const BAD_FALLBACK: [number, number] = [22.0, 78.0];
+
+function isBadFallback(coords: [number, number]): boolean {
+  return Math.abs(coords[0] - BAD_FALLBACK[0]) < 0.01
+      && Math.abs(coords[1] - BAD_FALLBACK[1]) < 0.01;
+}
 
 function loadPersistedCache(): void {
   try {
@@ -27,7 +39,10 @@ function loadPersistedCache(): void {
     if (raw) {
       const parsed: Record<string, [number, number]> = JSON.parse(raw);
       for (const [k, v] of Object.entries(parsed)) {
-        memoryCache.set(k, v);
+        // Skip entries that were cached with the bad India-center fallback
+        if (!isBadFallback(v)) {
+          memoryCache.set(k, v);
+        }
       }
     }
   } catch { /* ignore corrupt data */ }
@@ -91,7 +106,7 @@ async function geocodeDistrict(
 export async function getDistrictCoordsAsync(
   district: string,
   state: string,
-): Promise<[number, number]> {
+): Promise<[number, number] | null> {
   const key = cacheKey(district, state);
 
   // 1. Check cache
@@ -106,8 +121,10 @@ export async function getDistrictCoordsAsync(
     return coords;
   }
 
-  // 3. Fallback: India center
-  return [22.0, 78.0];
+  // 3. Geocoding failed — return null so callers can use a smarter
+  //    fallback (e.g. state center) instead of a fixed India-center point
+  //    that would place the marker in the wrong state.
+  return null;
 }
 
 /**
@@ -138,9 +155,14 @@ export async function batchGeocode(
     const batch = toFetch.slice(i, i + concurrency);
     const promises = batch.map(async ({ district, state, key }) => {
       const coords = await geocodeDistrict(district, state);
-      const resolved: [number, number] = coords || [22.0, 78.0];
-      memoryCache.set(key, resolved);
-      results.set(key, resolved);
+      if (coords) {
+        // Only cache successful geocoding results
+        memoryCache.set(key, coords);
+        results.set(key, coords);
+      }
+      // Failed lookups are NOT cached — callers should use a state-center
+      // fallback instead of the fixed [22.0, 78.0] which places markers
+      // in the wrong state.
     });
     await Promise.all(promises);
   }

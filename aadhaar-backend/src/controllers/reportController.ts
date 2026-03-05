@@ -1,9 +1,8 @@
 import type { Request, Response } from 'express';
 import { PrismaClient, MetricCategory } from '@prisma/client';
-import fs from 'fs/promises';
-import path from 'path';
 import { PDFGenerator } from '../utils/generator.ts';
 import type { ReportGenerationData, ReportFindingData } from '../utils/generator.ts';
+import { uploadPDF, downloadPDF, deletePDF, extractFileName } from '../utils/supabaseStorage.ts';
 
 const prisma = new PrismaClient();
 const pdfGenerator = new PDFGenerator();
@@ -59,11 +58,18 @@ export class ReportController {
         return;
       }
 
-      // Check if report already exists for this exact scope
+      // Build a unique title that includes all scope dimensions
+      const stateLabel = state || 'National';
+      const districtLabel = district || 'All Districts';
+      const categoryLabel = metricCategory ? ` [${metricCategory}]` : '';
+      const reportTitle = `Aadhaar Intelligence Report - ${stateLabel} ${districtLabel}${categoryLabel}`;
+
+      // Check if report already exists for this exact scope (including category)
       const existingWhere: any = { year, month };
       // Use null matching for unscoped (national/all-district) reports
       existingWhere.state = state || null;
       existingWhere.district = district || null;
+      existingWhere.title = reportTitle;
 
       const existingReport = await prisma.report.findFirst({
         where: existingWhere,
@@ -121,9 +127,6 @@ export class ReportController {
       // Step 2: Calculate summary statistics
       const summary = this.calculateSummary(findings);
 
-      const stateLabel = state || 'National';
-      const districtLabel = district || 'All Districts';
-
       // Step 3: Prepare data for PDF generation
       const reportData: ReportGenerationData = {
         year,
@@ -138,13 +141,9 @@ export class ReportController {
       // Step 4: Generate PDF
       const pdfBuffer = await pdfGenerator.generateReport(reportData);
 
-      // Step 5: Save PDF to filesystem
-      const reportsDir = path.join(process.cwd(), 'reports');
-      await fs.mkdir(reportsDir, { recursive: true });
-
+      // Step 5: Upload PDF to Supabase Storage
       const filename = `report_${year}_${String(month).padStart(2, '0')}_${stateLabel.replace(/\s+/g, '_')}_${districtLabel.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
-      const filePath = path.join(reportsDir, filename);
-      await fs.writeFile(filePath, pdfBuffer);
+      const publicUrl = await uploadPDF(filename, pdfBuffer);
 
       const fileSize = this.formatFileSize(pdfBuffer.length);
 
@@ -153,7 +152,7 @@ export class ReportController {
         // Create the main Report record
         let newReport = await tx.report.create({
           data: {
-            title: `Aadhaar Intelligence Report - ${stateLabel} ${districtLabel}`,
+            title: reportTitle,
             reportType: district ? 'district' : state ? 'state' : 'national',
             generatedBy: createdBy || 'system',
             year,
@@ -161,8 +160,8 @@ export class ReportController {
             state: state || null,
             district: district || null,
             status: 'generated',
-            pdfUrl: '',
-            pdfPath: filePath,
+            pdfUrl: publicUrl,
+            pdfPath: filename,  // Store just the filename for Supabase operations
             fileSize,
             totalFindings: summary.totalFindings,
             criticalCount: summary.critical,
@@ -175,7 +174,9 @@ export class ReportController {
         const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
         newReport = await tx.report.update({
           where: { id: newReport.id },
-          data: { pdfUrl: `${baseUrl}/api/reports/${newReport.id}/download` },
+          data: {
+            pdfUrl: publicUrl,  // Use Supabase public URL directly
+          },
         });
 
 
@@ -350,10 +351,10 @@ export class ReportController {
 
       const report = await prisma.report.findUnique({
         where: { id: BigInt(id as string) },
-        select: { pdfPath: true, title: true },
+        select: { pdfPath: true, pdfUrl: true, title: true },
       });
 
-      if (!report || !report.pdfPath) {
+      if (!report) {
         res.status(404).json({
           success: false,
           error: 'Report not found or PDF not available',
@@ -361,23 +362,30 @@ export class ReportController {
         return;
       }
 
-      // Check if file exists
-      try {
-        await fs.access(report.pdfPath);
-      } catch {
-        res.status(404).json({
-          success: false,
-          error: 'PDF file not found on server',
-        });
+      // If we have a Supabase public URL, redirect to it for direct download
+      if (report.pdfUrl) {
+        res.redirect(report.pdfUrl);
         return;
       }
 
-      const filename = path.basename(report.pdfPath);
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+      // Fallback: download from Supabase via API and stream to client
+      if (report.pdfPath) {
+        try {
+          const fileBuffer = await downloadPDF(report.pdfPath);
+          const filename = report.pdfPath.split('/').pop() || 'report.pdf';
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+          res.send(fileBuffer);
+          return;
+        } catch (downloadError) {
+          console.error('Supabase download failed:', downloadError);
+        }
+      }
 
-      const fileBuffer = await fs.readFile(report.pdfPath);
-      res.send(fileBuffer);
+      res.status(404).json({
+        success: false,
+        error: 'PDF file not found in storage',
+      });
     } catch (error) {
       console.error('Error downloading report:', error);
       res.status(500).json({
@@ -409,12 +417,12 @@ export class ReportController {
         return;
       }
 
-      // Delete PDF file if exists
+      // Delete PDF from Supabase Storage
       if (report.pdfPath) {
         try {
-          await fs.unlink(report.pdfPath);
+          await deletePDF(report.pdfPath);
         } catch (error) {
-          console.warn('Failed to delete PDF file:', error);
+          console.warn('Failed to delete PDF from Supabase:', error);
         }
       }
 
@@ -583,8 +591,8 @@ export class ReportController {
         severity: anomaly.anomalySeverity || this.calculateSeverity(anomaly.anomalyScore),
         confidence: anomaly.anomalyConfidence,
         value1: anomaly.anomalyScore,
-        value2: anomaly.expectedValue,
-        value3: anomaly.observedValue,
+        value2: anomaly.anomalyConfidence,
+        value3: null,
         recommendation: this.generateAnomalyRecommendation(anomaly),
         detectedAt: anomaly.detectedAt,
       });

@@ -20,6 +20,7 @@ import searchRoutes from './src/routes/searchRoutes.ts';
 import policyRoutes from "./src/routes/policyRoutes.ts";
 import reportRoutes from "./src/routes/reportRoutes.ts";
 import syncRoutes from "./src/routes/syncRoutes.ts";
+import { ensureBucket } from './src/utils/supabaseStorage.ts';
 
 const app = express();
 
@@ -56,4 +57,9 @@ app.get('/api/secure', authenticateJWT, (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT} (PID: ${process.pid})`);
+
+  // Initialize Supabase storage bucket (non-blocking)
+  ensureBucket().catch((err) =>
+    console.warn('⚠️ Supabase Storage init skipped:', err.message)
+  );
 });

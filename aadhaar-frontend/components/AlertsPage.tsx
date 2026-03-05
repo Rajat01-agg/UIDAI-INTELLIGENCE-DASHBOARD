@@ -844,7 +844,7 @@ const AlertsPage: React.FC = () => {
                               <div key={mi} className="flex justify-between items-center">
                                 <span className="text-xs text-gray-600">{m.label}</span>
                                 <span className="text-sm font-semibold text-gray-900">
-                                  {m.value.toFixed(1)}
+                                  {Number.isInteger(m.value) ? m.value : m.value.toFixed(1)}
                                   {m.threshold && <span className="text-xs text-gray-400 ml-1">/ {m.threshold}</span>}
                                 </span>
                               </div>

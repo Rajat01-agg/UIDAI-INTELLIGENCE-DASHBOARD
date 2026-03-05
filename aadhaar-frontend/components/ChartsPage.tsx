@@ -346,7 +346,10 @@ const ChartsPage: React.FC = () => {
   const pieChartData = visualsData?.pieChart || null;
   const radarChartData = visualsData?.radarChart || null;
   const polarAreaChartData = visualsData?.polarAreaChart || null;
-  const hasActiveFilters = Object.values(filters).some(v => v !== undefined);
+  const hasActiveFilters = Object.values(filters).some(v => v !== undefined)
+    || signalTypes.length > 0
+    || severityLevel !== 'All'
+    || timeWindow !== 'Last 7 days';
 
   return (
     <div className="space-y-6 p-6 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
@@ -552,7 +555,7 @@ const ChartsPage: React.FC = () => {
               <option value="">All Indexes</option>
               {filterOptions?.indexTypes.map((type) => (
                 <option key={type} value={type}>
-                  {type}
+                  {type === 'CompositeRisk' ? 'Composite Risk' : `${type} Index`}
                 </option>
               ))}
             </select>
@@ -581,7 +584,12 @@ const ChartsPage: React.FC = () => {
 
           {hasActiveFilters && (
             <button
-              onClick={clearFilters}
+              onClick={() => {
+                clearFilters();
+                setSignalTypes([]);
+                setSeverityLevel('All');
+                setTimeWindow('Last 7 days');
+              }}
               className="flex items-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all"
             >
               <X className="h-4 w-4" />

@@ -115,7 +115,7 @@ const HeatmapPage: React.FC = () => {
     setMetricTypeFilter,
     setAgeGroupFilter,
     setIndexTypeFilter,
-    clearFilters,
+    clearFilters: rawClearFilters,
     filteredDistricts,
   } = useFilters();
 
@@ -151,6 +151,22 @@ const HeatmapPage: React.FC = () => {
       });
     }
   }, []);
+
+  // Wrap clearFilters to also reset map viewport and clear stale data
+  const clearFilters = useCallback(() => {
+    rawClearFilters();
+    setHeatmapData(null);
+    setSelectedPoint(null);
+    // Reset map to full India view
+    const map = mapRef.current;
+    if (map) {
+      map.flyTo({
+        center: [INITIAL_VIEW_STATE.longitude, INITIAL_VIEW_STATE.latitude],
+        zoom: INITIAL_VIEW_STATE.zoom,
+        duration: 1500,
+      });
+    }
+  }, [rawClearFilters]);
 
   // Strictly filter displayed markers by the active state/district filter.
   // This is a defensive layer — even if the backend or mock data returns extra
@@ -495,7 +511,22 @@ async function generateMockHeatmapData(filters: AppliedFilters): Promise<Heatmap
   const dataPoints: HeatmapDataPoint[] = pairs.map((p) => {
     const indexValue = 15 + Math.random() * 75;
     const status: RegionStatus = indexValue >= 70 ? 'CRITICAL' : indexValue >= 50 ? 'WATCH' : 'NORMAL';
-    const coords = getDistrictCoordsSync(p.district, p.state) || [22.0, 78.0];
+    // Use geocoded coords; validate they're within state bounds, fall back to state center + jitter
+    let coords = getDistrictCoordsSync(p.district, p.state);
+    const sc = STATE_CENTERS[p.state];
+    // Validate coords are plausibly within the expected state (< 4° from center)
+    if (coords && sc) {
+      const dLat = Math.abs(coords[0] - sc.lat);
+      const dLng = Math.abs(coords[1] - sc.lng);
+      if (dLat > 4 || dLng > 4) coords = null; // out-of-state geocode — discard
+    }
+    if (!coords) {
+      if (sc) {
+        coords = [sc.lat + (Math.random() - 0.5) * 0.6, sc.lng + (Math.random() - 0.5) * 0.6];
+      } else {
+        coords = [22.0, 78.0];
+      }
+    }
 
     return {
       districtCode: `${p.abbr}-${p.district.substring(0, 3).toUpperCase()}`,
