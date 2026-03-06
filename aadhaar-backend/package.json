@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "nodemon --watch src --exec ts-node app.ts",
     "test": "echo \"No tests configured\" && exit 1",
-    "build": "echo 'skip'",
-    "start": "tsx src/app.ts"
+    "build": "npx prisma generate",
+    "start": "node --import tsx app.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
