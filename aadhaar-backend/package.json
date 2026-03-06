@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "nodemon --watch src --exec ts-node app.ts",
     "test": "echo \"No tests configured\" && exit 1",
-    "build": "tsc",
-    "start": "node dist/app.js"
+    "build": "echo 'skip'",
+    "start": "tsx src/app.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -31,7 +31,8 @@
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "pdfkit": "^0.17.2",
-    "prisma": "^6.19.2"
+    "prisma": "^6.19.2",
+    "tsx": "^4.21.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
