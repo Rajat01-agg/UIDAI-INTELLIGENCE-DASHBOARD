@@ -94,7 +94,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isMenuOpen, setIsMenuOpen, curre
                 <Search size={20} />
               </button>
               <a 
-                href="http://localhost:3001" 
+                href={import.meta.env.VITE_FRONTEND_URL || 'http://localhost:3001'} 
                 className="bg-govt-blue text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-800 transition-colors shadow-sm"
               >
                 Official Login
@@ -130,7 +130,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isMenuOpen, setIsMenuOpen, curre
             ))}
             <div className="mt-4 pt-4 border-t border-gray-200">
               <a 
-                href="http://localhost:3001" 
+                href={import.meta.env.VITE_FRONTEND_URL || 'http://localhost:3001'} 
                 className="w-full block text-center bg-govt-blue text-white px-4 py-2 rounded font-medium hover:bg-blue-800 transition-colors"
               >
                 Official Login
