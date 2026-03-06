@@ -11,7 +11,7 @@ import React, { useState } from 'react';
 import { Loader2, Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const LoginPage: React.FC = () => {
   const { login, loginWithGoogle, isLoading, error } = useAuth();
