@@ -6,7 +6,7 @@
 
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen)
 ![Version](https://img.shields.io/badge/Version-1.0.0-blue)
-![License](https://img.shields.io/badge/License-Hackathon%20Project-orange)
+![License](https://img.shields.io/badge/License-Project-orange)
 ![Last Updated](https://img.shields.io/badge/Updated-March%202026-orange)
 
 [![Backend](https://img.shields.io/badge/Backend-Node.js%20%7C%20Express-339933?style=for-the-badge&logo=node.js&logoColor=white)](aadhaar-backend/)
@@ -39,7 +39,7 @@
 
 ## 🎯 Overview
 
-The **UIDAI Intelligence System** is an enterprise-grade platform designed to analyze Aadhaar authentication data at scale. Built for the **UIDAI Aadhaar Hackathon 2026**, it combines machine learning, threat detection, and policy intelligence to provide actionable insights for decision-makers.
+The **UIDAI Intelligence System** is an enterprise-grade platform designed to analyze Aadhaar authentication data at scale. It combines machine learning, threat detection, and policy intelligence to provide actionable insights for decision-makers.
 
 ### Core Capabilities
 
@@ -601,14 +601,14 @@ git push origin feature/your-feature-name
 | **Version** | 1.0.0 |
 | **Status** | Active Development |
 | **Last Updated** | March 2026 |
-| **Built For** | UIDAI Aadhaar Hackathon 2026 |
+| **Built For** | UIDAI Aadhaar Project |
 | **Repository** | [github.com/Rajat01-agg/Aadhaar-Intelligence-System-Final](https://github.com/Rajat01-agg/Aadhaar-Intelligence-System-Final) |
 
 ---
 
 ## 📄 License
 
-This project is built for the **UIDAI Aadhaar Hackathon 2026** and is intended for educational, research, and demonstration purposes.
+This project is intended for educational, research, and demonstration purposes.
 
 ---
 

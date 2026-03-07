@@ -275,4 +275,4 @@ See [test/TESTING_GUIDE.md](./test/TESTING_GUIDE.md) and [test/TESTING_QUICK_REF
 
 ## License
 
-This project is built for the **UIDAI Aadhaar Hackathon 2026** and is intended for educational, research, and demonstration purposes.
+This project is intended for educational, research, and demonstration purposes.

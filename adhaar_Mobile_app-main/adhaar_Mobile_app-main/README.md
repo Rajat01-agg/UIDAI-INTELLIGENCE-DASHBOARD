@@ -1,7 +1,7 @@
 # 🇮🇳 UIDAI Alert System - Mobile Officer App
 
 **Government-Grade Mobile Application for Field Officers**  
-*Part of the Aadhaar Intelligence System - UIDAI Hackathon 2026*
+*Part of the Aadhaar Intelligence System*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![React](https://img.shields.io/badge/React-19.x-blue.svg)](https://reactjs.org/)
@@ -419,7 +419,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👥 Team
 
-**Team GEOVISION  - UIDAI Hackathon 2026**
+**Team GEOVISION**
 
 - **Raj(Team lead)** - Frontend & Mobile app Development
 - **Rajat** - Lead Architect & Backend
@@ -443,7 +443,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🏆 Acknowledgments
 
-- **UIDAI** for providing the Aadhaar datasets and hackathon opportunity
+- **UIDAI** for providing the Aadhaar datasets
 - **National Informatics Centre (NIC)** for UX4G design guidelines
 - **Ministry of Electronics and IT** for Digital India vision
 - Open source community for libraries and tools
@@ -462,7 +462,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔄 Version History
 
-### v1.0.0 (March 2026) - Hackathon Submission
+### v1.0.0 (March 2026) - Initial Release
 - ✅ Alert management system
 - ✅ Role-based dashboards
 - ✅ Offline PWA support
@@ -483,7 +483,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - 🌐 [Live Demo](https://uidai-mobile.vercel.app)
 - 📊 [Dashboard Backend](https://github.com/team-rajat/uidai-backend)
 - 🤖 [ML Pipeline](https://github.com/team-rajat/uidai-ml-pipeline)
-- 📄 [Full Report PDF](./UIDAI_Hackathon_Report.pdf)
+- 📄 [Full Report PDF](./UIDAI_Report.pdf)
 
 ---
 
