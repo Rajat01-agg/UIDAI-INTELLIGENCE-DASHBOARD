@@ -141,26 +141,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         error: null,
       });
     } catch (err) {
-      // Demo mode: Allow login with any credentials if API is unavailable
-      console.warn('API unavailable, using demo mode');
-      const demoUser: User = {
-        id: 'demo-user-1',
-        email: credentials.email,
-        name: credentials.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        role: 'admin',
-        department: 'Central Analytics',
-      };
-      
-      // Store demo token and user
-      setAuthToken('demo-token-' + Date.now());
-      setStoredUser(demoUser);
-      
-      setState({
-        user: demoUser,
-        isAuthenticated: true,
+      setState(prev => ({
+        ...prev,
         isLoading: false,
-        error: null,
-      });
+        error: err instanceof Error ? err.message : 'Login failed',
+      }));
+      throw err;
     }
   }, []);
 

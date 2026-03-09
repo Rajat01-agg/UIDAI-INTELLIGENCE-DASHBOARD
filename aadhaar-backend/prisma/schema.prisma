@@ -92,6 +92,7 @@ model User {
   email             String?  @unique
   mobileNumber      String?  @unique
   name              String?
+  password          String?  // Hashed password for email/password login
 
   role              UserRole @default(viewer)
   isActive          Boolean  @default(true)

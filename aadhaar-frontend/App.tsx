@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import LoginPage from './components/LoginPage';
+import RegisterPage from './components/RegisterPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ViewState } from './types';
@@ -86,15 +87,24 @@ const DashboardContent: React.FC = () => {
 // Main app with auth routing
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
+  const [showRegister, setShowRegister] = useState(false);
 
   // Show loading screen while checking auth
   if (isLoading) {
     return <AuthLoadingScreen />;
   }
 
-  // Show login page if not authenticated
+  // Show login or register page if not authenticated
   if (!isAuthenticated) {
-    return <LoginPage />;
+    if (showRegister) {
+      return (
+        <RegisterPage
+          onSwitchToLogin={() => setShowRegister(false)}
+          onRegisterSuccess={() => setShowRegister(false)}
+        />
+      );
+    }
+    return <LoginPage onSwitchToRegister={() => setShowRegister(true)} />;
   }
 
   // Show dashboard if authenticated

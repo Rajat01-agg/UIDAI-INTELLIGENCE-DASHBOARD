@@ -13,7 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-const LoginPage: React.FC = () => {
+const LoginPage: React.FC<{ onSwitchToRegister?: () => void }> = ({ onSwitchToRegister }) => {
   const { login, loginWithGoogle, isLoading, error } = useAuth();
   
   const [email, setEmail] = useState('');
@@ -214,6 +214,20 @@ const LoginPage: React.FC = () => {
               )}
             </button>
           </form>
+
+          {/* Switch to Register */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              Don't have an account?{' '}
+              <button
+                type="button"
+                onClick={onSwitchToRegister}
+                className="text-blue-600 hover:text-blue-700 font-semibold"
+              >
+                Create Account
+              </button>
+            </p>
+          </div>
         </div>
 
         {/* Footer */}

@@ -13,6 +13,7 @@ import {
   User,
   AuthResponse,
   LoginCredentials,
+  RegisterCredentials,
   GoogleAuthPayload,
 } from '../types';
 
@@ -101,6 +102,23 @@ async function authFetch<T>(
   }
 
   return response.json();
+}
+
+/**
+ * Register a new user
+ * POST /auth/register
+ */
+export async function register(credentials: RegisterCredentials): Promise<AuthResponse> {
+  const response = await authFetch<AuthResponse>('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  });
+
+  // Store token and user
+  setAuthToken(response.accessToken);
+  setStoredUser(response.user);
+
+  return response;
 }
 
 /**
